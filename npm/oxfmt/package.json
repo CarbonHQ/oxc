@@ -1,22 +1,24 @@
 {
-  "name": "oxfmt",
-  "version": "0.74.0",
-  "description": "Formatter for the JavaScript Oxidation Compiler",
+  "name": "@carbonhq/oxfmt",
+  "version": "0.74.0-sql.0",
+  "description": "CarbonHQ's Oxfmt fork with native SQL formatting",
   "keywords": [
     "formatter",
     "javascript",
     "oxc",
     "oxfmt",
+    "postgresql",
     "prettier",
+    "sql",
     "typescript"
   ],
-  "homepage": "https://oxc.rs/docs/guide/usage/formatter",
-  "bugs": "https://github.com/oxc-project/oxc/issues",
+  "homepage": "https://github.com/CarbonHQ/oxc/tree/sql/npm/oxfmt",
+  "bugs": "https://github.com/CarbonHQ/oxc/issues",
   "license": "MIT",
   "author": "Boshen and oxc contributors",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oxc-project/oxc",
+    "url": "git+https://github.com/CarbonHQ/oxc.git",
     "directory": "npm/oxfmt"
   },
   "funding": {
@@ -29,7 +31,8 @@
     "configuration_schema.json",
     "dist",
     "README.md",
-    "bin/oxfmt"
+    "bin/oxfmt",
+    "THIRD_PARTY_LICENSES"
   ],
   "type": "module",
   "main": "dist/index.js",
@@ -40,6 +43,11 @@
       "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "sql"
   },
   "dependencies": {
     "tinypool": "2.2.0"
@@ -62,7 +70,7 @@
   },
   "napi": {
     "binaryName": "oxfmt",
-    "packageName": "@oxfmt/binding",
+    "packageName": "@carbonhq/oxfmt-binding",
     "targets": [
       "aarch64-apple-darwin",
       "aarch64-linux-android",

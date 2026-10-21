@@ -45,14 +45,27 @@ The Oxidation Compiler is creating a suite of high-performance tools for JavaScr
 
 ## Oxfmt
 
-This is the formatter for oxc.
+`@carbonhq/oxfmt` is CarbonHQ's fork of Oxfmt with native SQL formatting.
+The command is still named `oxfmt`; the package and its native bindings are
+published under `@carbonhq`. Upstream Oxfmt is maintained by the Oxc contributors.
+
+```sh
+pnpm add --save-dev @carbonhq/oxfmt@sql
+pnpm exec oxfmt --check .
+```
+
+To retain an existing `oxfmt` dependency name, use an npm alias such as
+`yarn add --dev oxfmt@npm:@carbonhq/oxfmt@sql`.
+
+See [release instructions](https://github.com/CarbonHQ/oxc/blob/sql/npm/oxfmt/RELEASING.md)
+for building, testing, and publishing this fork.
 
 See [usage instructions](https://oxc.rs/docs/guide/usage/formatter).
 
 Run
 
-- `npx --yes oxfmt@latest` in your JavaScript / TypeScript codebase and see it complete in milliseconds. No configurations are required.
-- `npx oxfmt@latest --help` for quick usage instructions.
+- `npx --yes @carbonhq/oxfmt@sql` in your JavaScript / TypeScript codebase. No configurations are required.
+- `npx @carbonhq/oxfmt@sql --help` for quick usage instructions.
 - `npx skills add https://github.com/oxc-project/oxc --skill migrate-oxfmt` to install the [`migrate-oxfmt`](https://skills.sh/oxc-project/oxc/migrate-oxfmt) skill, then run `/migrate-oxfmt` to migrate from Prettier or Biome.
 - See also [migrate from Prettier](https://oxc.rs/docs/guide/usage/formatter/migrate-from-prettier.html).
 

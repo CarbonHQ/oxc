@@ -1,6 +1,6 @@
 {
   "name": "oxfmt-app",
-  "version": "0.74.0",
+  "version": "0.74.0-sql.0",
   "private": true,
   "description": "Internal development package for oxfmt. For the published package.json template, see `npm/oxfmt/package.json`.",
   "license": "MIT",
@@ -44,7 +44,7 @@
   },
   "napi": {
     "binaryName": "oxfmt",
-    "packageName": "@oxfmt/binding",
+    "packageName": "@carbonhq/oxfmt-binding",
     "targets": [
       "aarch64-apple-darwin",
       "aarch64-linux-android",

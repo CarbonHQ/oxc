@@ -2979,7 +2979,7 @@ dependencies = [
 
 [[package]]
 name = "oxfmt"
-version = "0.74.0"
+version = "0.74.0-sql.0"
 dependencies = [
  "bpaf",
  "cow-utils",

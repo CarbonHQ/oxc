@@ -90,10 +90,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-android-arm64')
-        const bindingPackageVersion = require('@oxfmt/binding-android-arm64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-android-arm64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-android-arm64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -106,10 +106,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-android-arm-eabi')
-        const bindingPackageVersion = require('@oxfmt/binding-android-arm-eabi/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-android-arm-eabi')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-android-arm-eabi/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -127,10 +127,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-win32-x64-gnu')
-          const bindingPackageVersion = require('@oxfmt/binding-win32-x64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-win32-x64-gnu')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-win32-x64-gnu/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -143,10 +143,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-win32-x64-msvc')
-          const bindingPackageVersion = require('@oxfmt/binding-win32-x64-msvc/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-win32-x64-msvc')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-win32-x64-msvc/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -160,10 +160,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-win32-ia32-msvc')
-        const bindingPackageVersion = require('@oxfmt/binding-win32-ia32-msvc/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-win32-ia32-msvc')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-win32-ia32-msvc/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -176,10 +176,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-win32-arm64-msvc')
-        const bindingPackageVersion = require('@oxfmt/binding-win32-arm64-msvc/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-win32-arm64-msvc')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-win32-arm64-msvc/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -195,10 +195,10 @@ function requireNative() {
       loadErrors.push(e)
     }
     try {
-      const binding = require('@oxfmt/binding-darwin-universal')
-      const bindingPackageVersion = require('@oxfmt/binding-darwin-universal/package.json').version
-      if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-        throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+      const binding = require('@carbonhq/oxfmt-binding-darwin-universal')
+      const bindingPackageVersion = require('@carbonhq/oxfmt-binding-darwin-universal/package.json').version
+      if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+        throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
       }
       return binding
     } catch (e) {
@@ -211,10 +211,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-darwin-x64')
-        const bindingPackageVersion = require('@oxfmt/binding-darwin-x64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-darwin-x64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-darwin-x64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -227,10 +227,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-darwin-arm64')
-        const bindingPackageVersion = require('@oxfmt/binding-darwin-arm64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-darwin-arm64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-darwin-arm64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -247,10 +247,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-freebsd-x64')
-        const bindingPackageVersion = require('@oxfmt/binding-freebsd-x64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-freebsd-x64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-freebsd-x64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -263,10 +263,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-freebsd-arm64')
-        const bindingPackageVersion = require('@oxfmt/binding-freebsd-arm64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-freebsd-arm64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-freebsd-arm64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -284,10 +284,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-x64-musl')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-x64-musl/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-x64-musl')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-x64-musl/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -300,10 +300,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-x64-gnu')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-x64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-x64-gnu')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-x64-gnu/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -318,10 +318,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-arm64-musl')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-arm64-musl/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-arm64-musl')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-arm64-musl/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -334,10 +334,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-arm64-gnu')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-arm64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-arm64-gnu')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-arm64-gnu/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -352,10 +352,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-arm-musleabihf')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-arm-musleabihf/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-arm-musleabihf')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-arm-musleabihf/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -368,10 +368,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-arm-gnueabihf')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-arm-gnueabihf/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-arm-gnueabihf')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-arm-gnueabihf/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -386,10 +386,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-loong64-musl')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-loong64-musl/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-loong64-musl')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-loong64-musl/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -402,10 +402,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-loong64-gnu')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-loong64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-loong64-gnu')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-loong64-gnu/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -420,10 +420,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-riscv64-musl')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-riscv64-musl/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-riscv64-musl')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-riscv64-musl/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -436,10 +436,10 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          const binding = require('@oxfmt/binding-linux-riscv64-gnu')
-          const bindingPackageVersion = require('@oxfmt/binding-linux-riscv64-gnu/package.json').version
-          if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-            throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const binding = require('@carbonhq/oxfmt-binding-linux-riscv64-gnu')
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-riscv64-gnu/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+            throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
           return binding
         } catch (e) {
@@ -453,10 +453,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-linux-ppc64-gnu')
-        const bindingPackageVersion = require('@oxfmt/binding-linux-ppc64-gnu/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-linux-ppc64-gnu')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-ppc64-gnu/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -469,10 +469,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-linux-s390x-gnu')
-        const bindingPackageVersion = require('@oxfmt/binding-linux-s390x-gnu/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-linux-s390x-gnu')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-linux-s390x-gnu/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -489,10 +489,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-openharmony-arm64')
-        const bindingPackageVersion = require('@oxfmt/binding-openharmony-arm64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-openharmony-arm64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-openharmony-arm64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -505,10 +505,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-openharmony-x64')
-        const bindingPackageVersion = require('@oxfmt/binding-openharmony-x64/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-openharmony-x64')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-openharmony-x64/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -521,10 +521,10 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        const binding = require('@oxfmt/binding-openharmony-arm')
-        const bindingPackageVersion = require('@oxfmt/binding-openharmony-arm/package.json').version
-        if (bindingPackageVersion !== '0.74.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          throw new Error(`Native binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+        const binding = require('@carbonhq/oxfmt-binding-openharmony-arm')
+        const bindingPackageVersion = require('@carbonhq/oxfmt-binding-openharmony-arm/package.json').version
+        if (bindingPackageVersion !== '0.74.0-sql.0' && process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
+          throw new Error(`Native binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
         }
         return binding
       } catch (e) {
@@ -659,16 +659,16 @@ if (!nativeBinding || forceWasi) {
     let candidateError = null
     let candidateFailed = false
     try {
-      candidateError = __napiWasiResolveCandidate('@oxfmt/binding-wasm32-wasi', true, undefined)
+      candidateError = __napiWasiResolveCandidate('@carbonhq/oxfmt-binding-wasm32-wasi', true, undefined)
       candidateFailed = candidateError !== null
       if (!candidateFailed) {
         if (process.env.NAPI_RS_ENFORCE_VERSION_CHECK && process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0') {
-          const bindingPackageVersion = require('@oxfmt/binding-wasm32-wasi/package.json').version
-          if (bindingPackageVersion !== '0.74.0') {
-            throw new Error(`WASI binding package version mismatch, expected 0.74.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
+          const bindingPackageVersion = require('@carbonhq/oxfmt-binding-wasm32-wasi/package.json').version
+          if (bindingPackageVersion !== '0.74.0-sql.0') {
+            throw new Error(`WASI binding package version mismatch, expected 0.74.0-sql.0 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`)
           }
         }
-        wasiBinding = require('@oxfmt/binding-wasm32-wasi')
+        wasiBinding = require('@carbonhq/oxfmt-binding-wasm32-wasi')
         nativeBinding = wasiBinding
         __napiLoadedBindingTarget = 'wasm32-wasi'
         wasiBindingLoaded = true
