@@ -7,11 +7,12 @@ version is `0.74.0-sql.0`, distributed under the `sql` npm tag.
 ## Build and inspect packages
 
 Pushes to `CarbonHQ/oxc`'s `sql` branch run
-`.github/workflows/release_carbonhq_oxfmt.yml`. The workflow builds every target
+`.github/workflows/release_apps.yml`. The workflow builds every target
 declared in `npm/oxfmt/package.json`, packs all native packages and the main
 package, and tests a clean Linux installation. Download the
-`carbonhq-oxfmt-npm` Actions artifact to inspect the tarballs. A branch push does
-not publish anything to npm.
+`carbonhq-oxfmt-npm` Actions artifact to inspect the tarballs. The fork reuses
+Oxc's Oxfmt build matrix and publish/retry helpers in the same workflow. A branch
+push does not publish anything to npm.
 
 For a local macOS ARM64 build:
 
@@ -37,19 +38,19 @@ resolution through the scoped optional dependency.
 The publisher needs permission to create public packages in the `carbonhq` npm
 organization. New packages need a first authenticated publish before their
 trusted publisher can be configured. For that first release, put a granular npm
-token with the required organization/package permissions in `NPM_TOKEN` in the
-GitHub `carbonhq-npm` environment. Never commit a token or an authenticated npmrc.
+token with package read/write publishing access to the `@carbonhq` scope and
+Bypass 2FA enabled in `NPM_TOKEN` in the GitHub `carbonhq-npm` environment. Never commit a token or an authenticated npmrc.
 
 After the first release, configure an npm trusted publisher on the main package
 and **every native package**, using:
 
-| Field               | Value                        |
-| ------------------- | ---------------------------- |
-| GitHub organization | `CarbonHQ`                   |
-| Repository          | `oxc`                        |
-| Workflow filename   | `release_carbonhq_oxfmt.yml` |
-| Environment         | `carbonhq-npm`               |
-| Allowed action      | `npm publish`                |
+| Field               | Value              |
+| ------------------- | ------------------ |
+| GitHub organization | `CarbonHQ`         |
+| Repository          | `oxc`              |
+| Workflow filename   | `release_apps.yml` |
+| Environment         | `carbonhq-npm`     |
+| Allowed action      | `npm publish`      |
 
 Once trusted publishing works, remove the bootstrap token. The workflow grants
 `id-token: write` and publishes public packages with provenance. See
