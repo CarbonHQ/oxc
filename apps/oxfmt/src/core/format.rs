@@ -149,6 +149,15 @@ impl SourceFormatter {
                 oxc_formatter_markdown::format_with_session(&session, source_text, options)
                     .and_then(|formatted| print(formatted, &path))
             }
+            FormatStrategy::Native(NativeLanguage::Sql) => {
+                let Some(options) = config.sql_file_options(core) else {
+                    return FormatResult::Success {
+                        is_changed: false,
+                        code: source_text.to_owned(),
+                    };
+                };
+                oxc_formatter_sql::format(source_text, options)
+            }
             FormatStrategy::Native(NativeLanguage::Toml) => {
                 oxc_formatter_toml::format(source_text, to_oxc_formatter_toml(&config, core))
             }

@@ -1,0 +1,501 @@
+use regex::Regex;
+use sqruff_lib_core::dialects::init::DialectKind;
+use sqruff_lib_core::dialects::syntax::{SyntaxKind, SyntaxSet};
+use sqruff_lib_core::lint_fix::LintFix;
+use sqruff_lib_core::parser::segments::SegmentBuilder;
+
+use crate::core::config::Value;
+use crate::core::rules::context::RuleContext;
+use crate::core::rules::crawlers::{Crawler, SegmentSeekerCrawler};
+use crate::core::rules::{Erased, ErasedRule, LintResult, Rule, RuleGroups};
+use crate::utils::functional::context::FunctionalContext;
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+enum QuotedKeywordStyle {
+    #[default]
+    DoubleQuotes,
+    Backticks,
+}
+
+impl QuotedKeywordStyle {
+    fn quote_char(self) -> &'static str {
+        match self {
+            Self::DoubleQuotes => "\"",
+            Self::Backticks => "`",
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct RuleRF06 {
+    prefer_quoted_identifiers: bool,
+    prefer_quoted_keywords: bool,
+    prefer_quoted_keyword_style: QuotedKeywordStyle,
+    ignore_words: Vec<String>,
+    ignore_words_regex: Vec<Regex>,
+    case_sensitive: bool,
+}
+
+impl Rule for RuleRF06 {
+    fn load_from_config(
+        &self,
+        config: &hashbrown::HashMap<String, Value>,
+    ) -> Result<ErasedRule, String> {
+        let prefer_quoted_keyword_style = match config["prefer_quoted_keyword_style"].as_string() {
+            Some("double_quotes") => QuotedKeywordStyle::DoubleQuotes,
+            Some("backticks") => QuotedKeywordStyle::Backticks,
+            Some(value) => {
+                return Err(format!(
+                    "Invalid value for prefer_quoted_keyword_style: {value}. Must be one of \
+                     [double_quotes, backticks]"
+                ));
+            }
+            None => return Err("Missing value for prefer_quoted_keyword_style".into()),
+        };
+
+        Ok(Self {
+            prefer_quoted_identifiers: config["prefer_quoted_identifiers"].as_bool().unwrap(),
+            prefer_quoted_keywords: config["prefer_quoted_keywords"].as_bool().unwrap(),
+            prefer_quoted_keyword_style,
+            ignore_words: config["ignore_words"]
+                .map(|it| {
+                    it.as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|it| it.as_string().unwrap().to_lowercase())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            ignore_words_regex: config["ignore_words_regex"]
+                .map(|it| {
+                    it.as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|it| Regex::new(it.as_string().unwrap()).unwrap())
+                        .collect()
+                })
+                .unwrap_or_default(),
+            case_sensitive: config["case_sensitive"].as_bool().unwrap(),
+        }
+        .erased())
+    }
+
+    fn name(&self) -> &'static str {
+        "references.quoting"
+    }
+
+    fn description(&self) -> &'static str {
+        "Unnecessary quoted identifier."
+    }
+
+    fn long_description(&self) -> &'static str {
+        r#"
+This rule checks whether quoted identifiers can be safely unquoted. By default,
+quotes are removed only when the unquoted identifier resolves to the same case in
+the selected dialect. Set `case_sensitive = False` to remove quotes regardless of
+identifier case; identifiers containing spaces, special characters, or keywords
+remain quoted.
+
+Uppercase-folding dialects such as Snowflake, BigQuery, TSQL, and Oracle can safely
+unquote identifiers such as `"FOO"`. Lowercase-folding dialects such as Athena,
+Hive, and Postgres can safely unquote `"foo"`. Case-insensitive dialects such as
+DuckDB and SparkSQL can safely unquote any otherwise-valid identifier.
+
+**Anti-pattern**
+
+In these examples, valid identifiers in each dialect's default case are needlessly
+quoted.
+
+```sql
+SELECT "foo" as "bar";  -- Lowercase dialects such as Postgres
+SELECT "FOO" as "BAR";  -- Uppercase dialects such as Snowflake
+```
+
+**Best practice**
+
+Use unquoted identifiers where possible.
+
+```sql
+SELECT foo as bar;
+SELECT FOO as BAR;
+
+-- Case-sensitive identifiers and identifiers which cannot be unquoted retain
+-- their quotes.
+SELECT "Case_Sensitive_Identifier", "Identifier with spaces", "SELECT";
+```
+
+When `prefer_quoted_identifiers = True`, the quotes are always necessary, no matter if the identifier is valid, a reserved keyword, or contains special characters.
+
+Automatic fixes are available when the dialect has a single context-independent
+identifier quote style. Other dialects report the violation without a fix.
+
+When `prefer_quoted_keywords = True`, SQLite keyword identifiers can also be
+fixed automatically. Set `prefer_quoted_keyword_style` to `double_quotes` (the
+default) or `backticks` to choose the inserted and normalized quote style. Other
+dialects continue to report quoted-keyword violations without a fix.
+
+**Anti-pattern**
+
+In this example, a valid unquoted identifier, that is also not a reserved keyword, is required to be quoted.
+
+```sql
+SELECT 123 as foo
+```
+
+**Best practice**
+
+Use quoted identifiers.
+
+```sql
+SELECT 123 as "foo" -- For ANSI, ...
+-- or
+SELECT 123 as `foo` -- For BigQuery, MySql, ...
+```"#
+    }
+
+    fn groups(&self) -> &'static [RuleGroups] {
+        &[RuleGroups::All, RuleGroups::References]
+    }
+
+    fn eval(&self, context: &RuleContext) -> Vec<LintResult> {
+        if FunctionalContext::new(context)
+            .parent_stack()
+            .any_match(|it| {
+                [SyntaxKind::PasswordAuth, SyntaxKind::ExecuteAsClause]
+                    .into_iter()
+                    .any(|ty| it.is_type(ty))
+            })
+        {
+            return Vec::new();
+        }
+
+        let identifier_is_quoted = context.segment.is_type(SyntaxKind::QuotedIdentifier);
+
+        let identifier_contents = context.segment.raw();
+        let identifier_contents = if identifier_is_quoted {
+            identifier_contents
+                .get(1..identifier_contents.len() - 1)
+                .map(ToOwned::to_owned)
+                .unwrap_or_default()
+        } else {
+            identifier_contents.to_string()
+        };
+
+        let identifier_is_keyword = context
+            .dialect
+            .sets("reserved_keywords")
+            .contains(identifier_contents.to_uppercase().as_str())
+            || context
+                .dialect
+                .sets("unreserved_keywords")
+                .contains(identifier_contents.to_uppercase().as_str())
+            || context
+                .dialect
+                .sets("future_reserved_keywords")
+                .contains(identifier_contents.to_uppercase().as_str());
+
+        let context_policy = if self.prefer_quoted_identifiers {
+            SyntaxKind::NakedIdentifier
+        } else {
+            SyntaxKind::QuotedIdentifier
+        };
+
+        if self
+            .ignore_words
+            .contains(&identifier_contents.to_lowercase())
+        {
+            return Vec::new();
+        }
+
+        if self
+            .ignore_words_regex
+            .iter()
+            .any(|regex| regex.is_match(identifier_contents.as_ref()))
+        {
+            return Vec::new();
+        }
+
+        if self.prefer_quoted_keywords && identifier_is_keyword {
+            let quote_char = self.prefer_quoted_keyword_style.quote_char();
+            let escaped_quote = quote_char.repeat(2);
+            let preferred_raw = format!(
+                "{quote_char}{}{quote_char}",
+                identifier_contents.replace(quote_char, &escaped_quote)
+            );
+
+            if !identifier_is_quoted {
+                let fixes = (context.dialect.name == DialectKind::Sqlite)
+                    .then(|| {
+                        LintFix::replace(
+                            context.segment.clone(),
+                            vec![
+                                SegmentBuilder::token(
+                                    context.tables.next_id(),
+                                    &preferred_raw,
+                                    SyntaxKind::QuotedIdentifier,
+                                )
+                                .finish(),
+                            ],
+                            None,
+                        )
+                    })
+                    .into_iter()
+                    .collect();
+
+                return vec![LintResult::new(
+                    context.segment.clone().into(),
+                    fixes,
+                    Some(format!(
+                        "Missing quoted keyword identifier {identifier_contents}."
+                    )),
+                    None,
+                )];
+            }
+
+            if context.dialect.name == DialectKind::Sqlite
+                && context.segment.raw().as_str() != preferred_raw
+            {
+                return vec![LintResult::new(
+                    context.segment.clone().into(),
+                    vec![LintFix::replace(
+                        context.segment.clone(),
+                        vec![
+                            SegmentBuilder::token(
+                                context.tables.next_id(),
+                                &preferred_raw,
+                                SyntaxKind::QuotedIdentifier,
+                            )
+                            .finish(),
+                        ],
+                        None,
+                    )],
+                    Some(format!(
+                        "Wrong quoted keyword identifier style {}.",
+                        context.segment.raw()
+                    )),
+                    None,
+                )];
+            }
+
+            return Vec::new();
+        }
+
+        if !context.segment.is_type(context_policy)
+            || context
+                .segment
+                .raw()
+                .eq_ignore_ascii_case("quoted_identifier")
+            || context
+                .segment
+                .raw()
+                .eq_ignore_ascii_case("naked_identifier")
+        {
+            return Vec::new();
+        }
+
+        if self.prefer_quoted_identifiers {
+            let fixes = identifier_quote_chars(context.dialect.name)
+                .map(|(opening, closing)| {
+                    LintFix::replace(
+                        context.segment.clone(),
+                        vec![
+                            SegmentBuilder::token(
+                                context.tables.next_id(),
+                                &format!("{opening}{identifier_contents}{closing}"),
+                                SyntaxKind::QuotedIdentifier,
+                            )
+                            .finish(),
+                        ],
+                        None,
+                    )
+                })
+                .into_iter()
+                .collect();
+
+            return vec![LintResult::new(
+                context.segment.clone().into(),
+                fixes,
+                Some(format!("Missing quoted identifier {identifier_contents}.")),
+                None,
+            )];
+        }
+
+        let owned = context.dialect.grammar("NakedIdentifierSegment");
+
+        let naked_identifier_parser = owned.as_regex().unwrap();
+
+        let is_case_insensitive_dialect = matches!(
+            context.dialect.name,
+            DialectKind::Duckdb | DialectKind::Sparksql
+        );
+        if !is_case_insensitive_dialect
+            && self.case_sensitive
+            && let Some(casefold) = naked_identifier_parser.casefold
+            && identifier_contents != casefold.apply(&identifier_contents)
+        {
+            return Vec::new();
+        }
+
+        if is_full_match(
+            naked_identifier_parser.template.as_str(),
+            &identifier_contents,
+        ) && naked_identifier_parser
+            .anti_template
+            .as_ref()
+            .is_none_or(|anti_template| {
+                !is_full_match(anti_template.as_str(), &identifier_contents)
+            })
+        {
+            return vec![LintResult::new(
+                context.segment.clone().into(),
+                vec![LintFix::replace(
+                    context.segment.clone(),
+                    vec![
+                        SegmentBuilder::token(
+                            context.tables.next_id(),
+                            &identifier_contents,
+                            SyntaxKind::NakedIdentifier,
+                        )
+                        .finish(),
+                    ],
+                    None,
+                )],
+                Some(format!(
+                    "Unnecessary quoted identifier {}.",
+                    context.segment.raw()
+                )),
+                None,
+            )];
+        }
+
+        Vec::new()
+    }
+
+    fn is_fix_compatible(&self) -> bool {
+        true
+    }
+
+    fn crawl_behaviour(&self) -> Crawler {
+        SegmentSeekerCrawler::new(
+            const { SyntaxSet::new(&[SyntaxKind::QuotedIdentifier, SyntaxKind::NakedIdentifier]) },
+        )
+        .into()
+    }
+}
+
+fn is_full_match(pattern: &str, text: &str) -> bool {
+    let full_pattern = format!("(?i)^{pattern}$"); // Adding (?i) for case insensitivity
+    let regex = fancy_regex::Regex::new(&full_pattern).unwrap();
+    regex.is_match(text).unwrap()
+}
+
+/// Returns the preferred identifier delimiters for dialects where a single
+/// context-independent choice is safe. `None` keeps RF06 lint-only.
+fn identifier_quote_chars(dialect: DialectKind) -> Option<(&'static str, &'static str)> {
+    match dialect {
+        DialectKind::Ansi
+        | DialectKind::Clickhouse
+        | DialectKind::Db2
+        | DialectKind::Duckdb
+        | DialectKind::Exasol
+        | DialectKind::Greenplum
+        | DialectKind::Materialize
+        | DialectKind::Oracle
+        | DialectKind::Postgres
+        | DialectKind::Redshift
+        | DialectKind::Snowflake
+        | DialectKind::Sqlite
+        | DialectKind::Teradata
+        | DialectKind::Trino
+        | DialectKind::Vertica => Some(("\"", "\"")),
+        DialectKind::Bigquery
+        | DialectKind::Databricks
+        | DialectKind::Doris
+        | DialectKind::Flink
+        | DialectKind::Hive
+        | DialectKind::Impala
+        | DialectKind::Mariadb
+        | DialectKind::Mysql
+        | DialectKind::Sparksql
+        | DialectKind::Starrocks => Some(("`", "`")),
+        DialectKind::Tsql => Some(("[", "]")),
+        DialectKind::Athena => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rf06_config(prefer_quoted_keyword_style: &str) -> hashbrown::HashMap<String, Value> {
+        hashbrown::HashMap::from_iter([
+            ("prefer_quoted_identifiers".into(), Value::Bool(false)),
+            ("prefer_quoted_keywords".into(), Value::Bool(false)),
+            (
+                "prefer_quoted_keyword_style".into(),
+                Value::String(prefer_quoted_keyword_style.into()),
+            ),
+            ("ignore_words".into(), Value::None),
+            ("ignore_words_regex".into(), Value::None),
+            ("case_sensitive".into(), Value::Bool(true)),
+        ])
+    }
+
+    #[test]
+    fn rf06_rejects_invalid_preferred_quoted_keyword_style() {
+        let error = RuleRF06::default()
+            .load_from_config(&rf06_config("square_brackets"))
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            "Invalid value for prefer_quoted_keyword_style: square_brackets. Must be one of \
+             [double_quotes, backticks]"
+        );
+    }
+
+    #[test]
+    fn rf06_accepts_valid_preferred_quoted_keyword_styles() {
+        for style in ["double_quotes", "backticks"] {
+            assert!(
+                RuleRF06::default()
+                    .load_from_config(&rf06_config(style))
+                    .is_ok()
+            );
+        }
+    }
+
+    #[test]
+    fn identifier_quote_chars_are_defined_for_every_dialect() {
+        let expectations = [
+            (DialectKind::Ansi, Some(("\"", "\""))),
+            (DialectKind::Athena, None),
+            (DialectKind::Bigquery, Some(("`", "`"))),
+            (DialectKind::Clickhouse, Some(("\"", "\""))),
+            (DialectKind::Databricks, Some(("`", "`"))),
+            (DialectKind::Db2, Some(("\"", "\""))),
+            (DialectKind::Duckdb, Some(("\"", "\""))),
+            (DialectKind::Exasol, Some(("\"", "\""))),
+            (DialectKind::Greenplum, Some(("\"", "\""))),
+            (DialectKind::Hive, Some(("`", "`"))),
+            (DialectKind::Impala, Some(("`", "`"))),
+            (DialectKind::Mariadb, Some(("`", "`"))),
+            (DialectKind::Mysql, Some(("`", "`"))),
+            (DialectKind::Oracle, Some(("\"", "\""))),
+            (DialectKind::Postgres, Some(("\"", "\""))),
+            (DialectKind::Redshift, Some(("\"", "\""))),
+            (DialectKind::Snowflake, Some(("\"", "\""))),
+            (DialectKind::Sparksql, Some(("`", "`"))),
+            (DialectKind::Sqlite, Some(("\"", "\""))),
+            (DialectKind::Starrocks, Some(("`", "`"))),
+            (DialectKind::Teradata, Some(("\"", "\""))),
+            (DialectKind::Trino, Some(("\"", "\""))),
+            (DialectKind::Tsql, Some(("[", "]"))),
+            (DialectKind::Vertica, Some(("\"", "\""))),
+        ];
+
+        for (dialect, expected) in expectations {
+            assert_eq!(identifier_quote_chars(dialect), expected, "{dialect:?}");
+        }
+    }
+}

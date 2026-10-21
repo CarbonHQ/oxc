@@ -67,7 +67,7 @@ Patterns are matched against paths relative to the configuration file's director
 
 #### associations[n].language
 
-type: `"javascript" | "jsx" | "typescript" | "tsx" | "json" | "jsonc" | "json5" | "css" | "scss" | "less" | "graphql" | "yaml" | "markdown" | "toml" | "html" | "angular-html" | "vue" | "svelte" | "astro" | "handlebars" | "mdx"`
+type: `"javascript" | "jsx" | "typescript" | "tsx" | "json" | "jsonc" | "json5" | "css" | "scss" | "less" | "graphql" | "sql" | "yaml" | "markdown" | "toml" | "html" | "angular-html" | "vue" | "svelte" | "astro" | "handlebars" | "mdx"`
 
 
 The language to format matched files as, named by its Shiki id (as in Markdown code fences).
@@ -876,6 +876,61 @@ Path to your Tailwind CSS stylesheet (v4).
 NOTE: Paths are resolved relative to the Oxfmt configuration file.
 
 - Default: Installed Tailwind CSS's `theme.css`
+
+
+## sql
+
+type: `object | boolean`
+
+
+Enable the Sqruff SQL formatting plugin for `sql` tagged templates,
+`/* SQL */` templates, and SQL Markdown fences.
+Only layout rules run; invalid SQL is preserved. Options inherit the host's
+`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: "off"`
+disables the plugin in embedded content.
+Standalone `.sql` files format by default using PostgreSQL; set `sql` to
+`false` to disable SQL formatting, or an object to choose their dialect.
+
+- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files
+
+
+### sql.dialect
+
+type: `"postgres" | "ansi" | "mysql" | "sqlite" | "bigquery" | "snowflake" | "duckdb" | "tsql"`
+
+default: `"postgres"`
+
+SQL dialect. Defaults to PostgreSQL.
+
+SQL dialects accepted by the plugin.
+
+
+### sql.excludeRules
+
+type: `array`
+
+
+Sqruff layout rules to exclude. For example, LT02 preserves existing
+indentation and LT05 preserves existing line wrapping. Parsing and token
+preservation checks remain enabled.
+
+
+#### sql.excludeRules[n]
+
+type: `"LT01" | "LT02" | "LT03" | "LT04" | "LT05" | "LT06" | "LT07" | "LT08" | "LT09" | "LT10" | "LT11" | "LT12" | "LT13" | "LT14" | "LT15"`
+
+
+Sqruff layout rule codes accepted by the SQL formatter.
+
+
+### sql.layout
+
+type: `Record<string, object>`
+
+
+Per-syntax-type Sqruff layout settings, using its snake_case type names
+(for example, function_contents or where_clause). Only spacing and line
+positioning settings are accepted.
 
 
 ## svelte

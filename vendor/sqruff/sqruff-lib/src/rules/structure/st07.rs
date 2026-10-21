@@ -1,0 +1,298 @@
+use hashbrown::HashMap;
+use itertools::Itertools;
+use smol_str::{SmolStr, ToSmolStr};
+use sqruff_lib_core::dialects::init::DialectKind;
+use sqruff_lib_core::dialects::syntax::{SyntaxKind, SyntaxSet};
+use sqruff_lib_core::lint_fix::LintFix;
+use sqruff_lib_core::parser::segments::{ErasedSegment, SegmentBuilder, Tables};
+use sqruff_lib_core::utils::analysis::select::get_select_statement_info;
+use sqruff_lib_core::utils::functional::segments::Segments;
+
+use crate::core::config::Value;
+use crate::core::rules::context::RuleContext;
+use crate::core::rules::crawlers::{Crawler, SegmentSeekerCrawler};
+use crate::core::rules::{Erased as _, ErasedRule, LintResult, Rule, RuleGroups};
+use crate::utils::functional::context::FunctionalContext;
+
+#[derive(Clone, Debug, Default)]
+pub struct RuleST07;
+
+impl Rule for RuleST07 {
+    fn load_from_config(&self, _config: &HashMap<String, Value>) -> Result<ErasedRule, String> {
+        Ok(RuleST07.erased())
+    }
+
+    fn name(&self) -> &'static str {
+        "structure.using"
+    }
+
+    fn description(&self) -> &'static str {
+        "Prefer specifying join keys instead of using ``USING``."
+    }
+
+    fn long_description(&self) -> &'static str {
+        r"
+**Anti-pattern**
+
+```sql
+SELECT
+    table_a.field_1,
+    table_b.field_2
+FROM
+    table_a
+INNER JOIN table_b USING (id)
+```
+
+**Best practice**
+
+Specify the keys directly
+
+```sql
+SELECT
+    table_a.field_1,
+    table_b.field_2
+FROM
+    table_a
+INNER JOIN table_b
+    ON table_a.id = table_b.id
+```"
+    }
+
+    fn groups(&self) -> &'static [RuleGroups] {
+        &[RuleGroups::All, RuleGroups::Structure]
+    }
+
+    fn dialect_skip(&self) -> &'static [DialectKind] {
+        &[DialectKind::Clickhouse]
+    }
+
+    fn eval(&self, context: &RuleContext) -> Vec<LintResult> {
+        let functional_context = FunctionalContext::new(context);
+        let segment = functional_context.segment();
+        let parent_stack = functional_context.parent_stack();
+
+        let usings = segment.children_where(|it: &ErasedSegment| it.is_keyword("using"));
+        let using_anchor = usings.first();
+
+        let Some(using_anchor) = using_anchor else {
+            return Vec::new();
+        };
+
+        let unfixable_result = LintResult::new(
+            using_anchor.clone().into(),
+            Vec::new(),
+            Some("Found USING statement. Expected only ON statements.".into()),
+            None,
+        );
+
+        let tables_in_join = parent_stack
+            .last()
+            .unwrap()
+            .segments()
+            .iter()
+            .filter(|it| {
+                matches!(
+                    it.get_type(),
+                    SyntaxKind::JoinClause | SyntaxKind::FromExpressionElement
+                )
+            })
+            .cloned()
+            .collect_vec();
+
+        if segment.get(0, None) != tables_in_join.get(1).cloned() {
+            return vec![unfixable_result];
+        }
+
+        let stmts = parent_stack
+            .find_last_where(|it: &ErasedSegment| it.is_type(SyntaxKind::SelectStatement));
+        let parent_select = stmts.first();
+
+        let Some(parent_select) = parent_select else {
+            return vec![unfixable_result];
+        };
+
+        let Some(select_info) =
+            get_select_statement_info(parent_select, context.dialect.into(), true)
+        else {
+            return vec![unfixable_result];
+        };
+        let mut table_aliases = select_info.table_aliases;
+        table_aliases.retain(|it| !it.ref_str.is_empty());
+
+        if table_aliases.len() < 2 {
+            return vec![unfixable_result];
+        }
+
+        let using_col_segments = extract_cols_from_using(segment.clone(), using_anchor);
+        let using_cols = using_col_segments
+            .iter()
+            .map(|seg| seg.raw().to_smolstr())
+            .collect();
+        // USING de-duplicates its columns. A leading reference to one of them
+        // could become ambiguous after rewriting the join to ON, including a
+        // struct access whose leading name also matches a table alias.
+        if select_info.reference_buffer.iter().any(|reference| {
+            reference
+                .iter_raw_references()
+                .first()
+                .and_then(|part| part.segments.first())
+                .is_some_and(|first| {
+                    using_col_segments.iter().any(|using_col| {
+                        first
+                            .raw_normalized()
+                            .eq_ignore_ascii_case(&using_col.raw_normalized())
+                    })
+                })
+        }) {
+            return vec![unfixable_result];
+        }
+
+        let (to_delete, insert_after_anchor) = extract_deletion_sequence_and_anchor(&segment);
+
+        // The first two SELECT aliases might not be the tables joined here,
+        // e.g. `FROM a, b JOIN c USING (id)` joins b to c.
+        let left_element = tables_in_join.first();
+        let right_element = segment
+            .children_where(|it: &ErasedSegment| it.is_type(SyntaxKind::FromExpressionElement));
+        let table_a = left_element.and_then(|element| {
+            table_aliases
+                .iter()
+                .find(|alias| alias.from_expression_element.id() == element.id())
+        });
+        let table_b = right_element.first().and_then(|element| {
+            table_aliases
+                .iter()
+                .find(|alias| alias.from_expression_element.id() == element.id())
+        });
+        let (Some(table_a), Some(table_b)) = (table_a, table_b) else {
+            return vec![unfixable_result];
+        };
+
+        let mut edit_segments = vec![
+            SegmentBuilder::keyword(context.tables.next_id(), "ON"),
+            SegmentBuilder::whitespace(context.tables.next_id(), " "),
+        ];
+
+        edit_segments.append(&mut generate_join_conditions(
+            context.tables,
+            context.dialect.name,
+            &table_a.ref_str,
+            &table_b.ref_str,
+            using_cols,
+        ));
+
+        let mut fixes = Vec::with_capacity(1 + to_delete.len());
+
+        fixes.push(LintFix::create_before(insert_after_anchor, edit_segments));
+        fixes.extend(to_delete.into_iter().map(LintFix::delete));
+
+        vec![LintResult::new(
+            using_anchor.clone().into(),
+            fixes,
+            None,
+            None,
+        )]
+    }
+
+    fn is_fix_compatible(&self) -> bool {
+        true
+    }
+
+    fn crawl_behaviour(&self) -> Crawler {
+        SegmentSeekerCrawler::new(const { SyntaxSet::new(&[SyntaxKind::JoinClause]) }).into()
+    }
+}
+
+fn extract_cols_from_using(
+    join_clause: Segments,
+    using_segs: &ErasedSegment,
+) -> Vec<ErasedSegment> {
+    join_clause
+        .children_all()
+        .after(using_segs)
+        .filter(|it: &ErasedSegment| it.is_type(SyntaxKind::Bracketed))
+        .head()
+        .children_where(|it: &ErasedSegment| {
+            it.is_type(SyntaxKind::Identifier)
+                || it.is_type(SyntaxKind::NakedIdentifier)
+                || it.is_type(SyntaxKind::QuotedIdentifier)
+        })
+        .into_iter()
+        .collect()
+}
+
+fn generate_join_conditions(
+    tables: &Tables,
+    dialect: DialectKind,
+    table_a_ref: &str,
+    table_b_ref: &str,
+    columns: Vec<SmolStr>,
+) -> Vec<ErasedSegment> {
+    let mut edit_segments = Vec::new();
+
+    for col in columns {
+        edit_segments.extend_from_slice(&[
+            create_col_reference(tables, dialect, table_a_ref, &col),
+            SegmentBuilder::whitespace(tables.next_id(), " "),
+            SegmentBuilder::token(tables.next_id(), "=", SyntaxKind::Symbol).finish(),
+            SegmentBuilder::whitespace(tables.next_id(), " "),
+            create_col_reference(tables, dialect, table_b_ref, &col),
+            SegmentBuilder::whitespace(tables.next_id(), " "),
+            SegmentBuilder::keyword(tables.next_id(), "AND"),
+            SegmentBuilder::whitespace(tables.next_id(), " "),
+        ]);
+    }
+
+    edit_segments
+        .get(..edit_segments.len().saturating_sub(3))
+        .map_or(Vec::new(), ToOwned::to_owned)
+        .clone()
+}
+
+fn extract_deletion_sequence_and_anchor(
+    join_clause: &Segments,
+) -> (Vec<ErasedSegment>, ErasedSegment) {
+    let mut insert_anchor = None;
+    let mut to_delete = Vec::new();
+
+    for seg in join_clause.children_all() {
+        if seg.raw().eq_ignore_ascii_case("USING") {
+            to_delete.push(seg.clone());
+            continue;
+        }
+
+        if to_delete.is_empty() {
+            continue;
+        }
+
+        if to_delete.last().unwrap().is_type(SyntaxKind::Bracketed) {
+            insert_anchor = Some(seg);
+            break;
+        }
+
+        to_delete.push(seg);
+    }
+
+    (to_delete, insert_anchor.unwrap())
+}
+
+fn create_col_reference(
+    tables: &Tables,
+    dialect: DialectKind,
+    table_ref: &str,
+    column_name: &str,
+) -> ErasedSegment {
+    SegmentBuilder::node(
+        tables.next_id(),
+        SyntaxKind::ColumnReference,
+        dialect,
+        vec![
+            SegmentBuilder::token(tables.next_id(), table_ref, SyntaxKind::NakedIdentifier)
+                .finish(),
+            SegmentBuilder::symbol(tables.next_id(), "."),
+            SegmentBuilder::token(tables.next_id(), column_name, SyntaxKind::NakedIdentifier)
+                .finish(),
+        ],
+    )
+    .finish()
+}

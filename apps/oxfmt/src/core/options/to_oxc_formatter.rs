@@ -116,6 +116,8 @@ pub fn to_oxc_formatter(
             matches!(sensitivity, HtmlWhitespaceSensitivityConfig::Ignore);
     }
 
+    format_options.sql_plugin = config.sql_options(core_options).is_some();
+
     // Below are our own extensions
 
     format_options.sort_imports = sort_imports;

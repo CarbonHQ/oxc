@@ -187,6 +187,15 @@
       ],
       "markdownDescription": "Sort Tailwind CSS classes.\n\nUses the same algorithm as [prettier-plugin-tailwindcss](https://github.com/tailwindlabs/prettier-plugin-tailwindcss).\nOption names omit the `tailwind` prefix used in the original plugin (e.g. `config` instead of `tailwindConfig`).\n\nPass `true` or an object to enable, `false` to disable.\n\n- Languages: JS, JSX, TS, TSX, HTML, Vue, Angular, Handlebars, CSS, SCSS, Less, Svelte, Astro\n- Default: Disabled"
     },
+    "sql": {
+      "description": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files",
+      "allOf": [
+        {
+          "$ref": "#/definitions/SqlUserConfig"
+        }
+      ],
+      "markdownDescription": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files"
+    },
     "svelte": {
       "description": "Options for `prettier-plugin-svelte`.\n\nPass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).\nSetting `true` resets to defaults, dropping options inherited from a parent scope.\n\nNOTE: `prettier-plugin-svelte` requires the `svelte` package (`svelte/compiler`) at runtime.\nOxfmt does NOT bundle it, so install it in your project, otherwise formatting fails.\n\n- Languages: Svelte\n- Default: Disabled",
       "allOf": [
@@ -517,6 +526,15 @@
           ],
           "markdownDescription": "Sort Tailwind CSS classes.\n\nUses the same algorithm as [prettier-plugin-tailwindcss](https://github.com/tailwindlabs/prettier-plugin-tailwindcss).\nOption names omit the `tailwind` prefix used in the original plugin (e.g. `config` instead of `tailwindConfig`).\n\nPass `true` or an object to enable, `false` to disable.\n\n- Languages: JS, JSX, TS, TSX, HTML, Vue, Angular, Handlebars, CSS, SCSS, Less, Svelte, Astro\n- Default: Disabled"
         },
+        "sql": {
+          "description": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlUserConfig"
+            }
+          ],
+          "markdownDescription": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files"
+        },
         "svelte": {
           "description": "Options for `prettier-plugin-svelte`.\n\nPass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).\nSetting `true` resets to defaults, dropping options inherited from a parent scope.\n\nNOTE: `prettier-plugin-svelte` requires the `svelte` package (`svelte/compiler`) at runtime.\nOxfmt does NOT bundle it, so install it in your project, otherwise formatting fails.\n\n- Languages: Svelte\n- Default: Disabled",
           "allOf": [
@@ -694,6 +712,7 @@
         "scss",
         "less",
         "graphql",
+        "sql",
         "yaml",
         "markdown",
         "toml",
@@ -1004,6 +1023,164 @@
           "$ref": "#/definitions/SortTailwindcssConfig"
         }
       ]
+    },
+    "SqlConfig": {
+      "description": "SQL plugin options.",
+      "type": "object",
+      "properties": {
+        "dialect": {
+          "description": "SQL dialect. Defaults to PostgreSQL.",
+          "default": "postgres",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlDialect"
+            }
+          ],
+          "markdownDescription": "SQL dialect. Defaults to PostgreSQL."
+        },
+        "excludeRules": {
+          "description": "Sqruff layout rules to exclude. For example, LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SqlLayoutRule"
+          },
+          "markdownDescription": "Sqruff layout rules to exclude. For example, LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled."
+        },
+        "layout": {
+          "description": "Per-syntax-type Sqruff layout settings, using its snake_case type names\n(for example, function_contents or where_clause). Only spacing and line\npositioning settings are accepted.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/SqlLayoutTypeConfig"
+          },
+          "markdownDescription": "Per-syntax-type Sqruff layout settings, using its snake_case type names\n(for example, function_contents or where_clause). Only spacing and line\npositioning settings are accepted."
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "SQL plugin options."
+    },
+    "SqlDialect": {
+      "description": "SQL dialects accepted by the plugin.",
+      "type": "string",
+      "enum": [
+        "postgres",
+        "ansi",
+        "mysql",
+        "sqlite",
+        "bigquery",
+        "snowflake",
+        "duckdb",
+        "tsql"
+      ],
+      "markdownDescription": "SQL dialects accepted by the plugin."
+    },
+    "SqlLayoutRule": {
+      "description": "Sqruff layout rule codes accepted by the SQL formatter.",
+      "type": "string",
+      "enum": [
+        "LT01",
+        "LT02",
+        "LT03",
+        "LT04",
+        "LT05",
+        "LT06",
+        "LT07",
+        "LT08",
+        "LT09",
+        "LT10",
+        "LT11",
+        "LT12",
+        "LT13",
+        "LT14",
+        "LT15"
+      ],
+      "markdownDescription": "Sqruff layout rule codes accepted by the SQL formatter."
+    },
+    "SqlLayoutTypeConfig": {
+      "description": "Layout settings for one Sqruff syntax type.",
+      "type": "object",
+      "properties": {
+        "keywordLinePosition": {
+          "description": "Placement of the node's leading keyword relative to its content.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlLinePosition"
+            }
+          ],
+          "markdownDescription": "Placement of the node's leading keyword relative to its content."
+        },
+        "linePosition": {
+          "description": "Placement of the whole node relative to adjacent lines.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlLinePosition"
+            }
+          ],
+          "markdownDescription": "Placement of the whole node relative to adjacent lines."
+        },
+        "spacingAfter": {
+          "description": "Spacing after the node. `any` preserves existing spacing.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSpacing"
+            }
+          ],
+          "markdownDescription": "Spacing after the node. `any` preserves existing spacing."
+        },
+        "spacingBefore": {
+          "description": "Spacing before the node. `any` preserves existing spacing.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSpacing"
+            }
+          ],
+          "markdownDescription": "Spacing before the node. `any` preserves existing spacing."
+        },
+        "spacingWithin": {
+          "description": "Spacing within the node.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSpacing"
+            }
+          ],
+          "markdownDescription": "Spacing within the node."
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Layout settings for one Sqruff syntax type."
+    },
+    "SqlLinePosition": {
+      "description": "Placement of a Sqruff syntax node or its leading keyword.",
+      "type": "string",
+      "enum": [
+        "leading",
+        "trailing",
+        "alone"
+      ],
+      "markdownDescription": "Placement of a Sqruff syntax node or its leading keyword."
+    },
+    "SqlSpacing": {
+      "description": "Sqruff spacing constraints. Inline constraints also disallow line breaks.",
+      "type": "string",
+      "enum": [
+        "single",
+        "touch",
+        "any",
+        "single:inline",
+        "touch:inline"
+      ],
+      "markdownDescription": "Sqruff spacing constraints. Inline constraints also disallow line breaks."
+    },
+    "SqlUserConfig": {
+      "description": "Opt-in SQL plugin configuration.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/SqlConfig"
+        }
+      ],
+      "markdownDescription": "Opt-in SQL plugin configuration."
     },
     "SvelteConfig": {
       "type": "object",

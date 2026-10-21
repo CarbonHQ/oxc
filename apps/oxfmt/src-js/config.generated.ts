@@ -21,6 +21,7 @@ export type Language =
   | "scss"
   | "less"
   | "graphql"
+  | "sql"
   | "yaml"
   | "markdown"
   | "toml"
@@ -68,6 +69,41 @@ export type SortGroupItemConfig = NewlinesBetweenMarker | string | string[];
 export type SortOrderConfig = "asc" | "desc";
 export type SortPackageJsonUserConfig = boolean | SortPackageJsonConfig;
 export type SortTailwindcssUserConfig = boolean | SortTailwindcssConfig;
+/**
+ * Opt-in SQL plugin configuration.
+ */
+export type SqlUserConfig = boolean | SqlConfig;
+/**
+ * SQL dialects accepted by the plugin.
+ */
+export type SqlDialect = "postgres" | "ansi" | "mysql" | "sqlite" | "bigquery" | "snowflake" | "duckdb" | "tsql";
+/**
+ * Sqruff layout rule codes accepted by the SQL formatter.
+ */
+export type SqlLayoutRule =
+  | "LT01"
+  | "LT02"
+  | "LT03"
+  | "LT04"
+  | "LT05"
+  | "LT06"
+  | "LT07"
+  | "LT08"
+  | "LT09"
+  | "LT10"
+  | "LT11"
+  | "LT12"
+  | "LT13"
+  | "LT14"
+  | "LT15";
+/**
+ * Placement of a Sqruff syntax node or its leading keyword.
+ */
+export type SqlLinePosition = "leading" | "trailing" | "alone";
+/**
+ * Sqruff spacing constraints. Inline constraints also disallow line breaks.
+ */
+export type SqlSpacing = "single" | "touch" | "any" | "single:inline" | "touch:inline";
 export type SvelteUserConfig = boolean | SvelteConfig;
 export type TrailingCommaConfig = "all" | "es5" | "none";
 
@@ -303,6 +339,18 @@ export interface Oxfmtrc {
    * - Default: Disabled
    */
   sortTailwindcss?: SortTailwindcssUserConfig;
+  /**
+   * Enable the Sqruff SQL formatting plugin for `sql` tagged templates,
+   * `/* SQL * /` templates, and SQL Markdown fences.
+   * Only layout rules run; invalid SQL is preserved. Options inherit the host's
+   * `tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: "off"`
+   * disables the plugin in embedded content.
+   * Standalone `.sql` files format by default using PostgreSQL; set `sql` to
+   * `false` to disable SQL formatting, or an object to choose their dialect.
+   *
+   * - Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files
+   */
+  sql?: SqlUserConfig;
   /**
    * Options for `prettier-plugin-svelte`.
    *
@@ -688,6 +736,18 @@ export interface FormatConfig {
    */
   sortTailwindcss?: SortTailwindcssUserConfig;
   /**
+   * Enable the Sqruff SQL formatting plugin for `sql` tagged templates,
+   * `/* SQL * /` templates, and SQL Markdown fences.
+   * Only layout rules run; invalid SQL is preserved. Options inherit the host's
+   * `tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: "off"`
+   * disables the plugin in embedded content.
+   * Standalone `.sql` files format by default using PostgreSQL; set `sql` to
+   * `false` to disable SQL formatting, or an object to choose their dialect.
+   *
+   * - Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files
+   */
+  sql?: SqlUserConfig;
+  /**
    * Options for `prettier-plugin-svelte`.
    *
    * Pass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).
@@ -946,6 +1006,54 @@ export interface SortTailwindcssConfig {
    */
   stylesheet?: string;
   [k: string]: unknown;
+}
+/**
+ * SQL plugin options.
+ */
+export interface SqlConfig {
+  /**
+   * SQL dialect. Defaults to PostgreSQL.
+   */
+  dialect?: SqlDialect & string;
+  /**
+   * Sqruff layout rules to exclude. For example, LT02 preserves existing
+   * indentation and LT05 preserves existing line wrapping. Parsing and token
+   * preservation checks remain enabled.
+   */
+  excludeRules?: SqlLayoutRule[];
+  /**
+   * Per-syntax-type Sqruff layout settings, using its snake_case type names
+   * (for example, function_contents or where_clause). Only spacing and line
+   * positioning settings are accepted.
+   */
+  layout?: {
+    [k: string]: SqlLayoutTypeConfig;
+  };
+}
+/**
+ * Layout settings for one Sqruff syntax type.
+ */
+export interface SqlLayoutTypeConfig {
+  /**
+   * Placement of the node's leading keyword relative to its content.
+   */
+  keywordLinePosition?: SqlLinePosition;
+  /**
+   * Placement of the whole node relative to adjacent lines.
+   */
+  linePosition?: SqlLinePosition;
+  /**
+   * Spacing after the node. `any` preserves existing spacing.
+   */
+  spacingAfter?: SqlSpacing;
+  /**
+   * Spacing before the node. `any` preserves existing spacing.
+   */
+  spacingBefore?: SqlSpacing;
+  /**
+   * Spacing within the node.
+   */
+  spacingWithin?: SqlSpacing;
 }
 export interface SvelteConfig {
   /**

@@ -43,6 +43,9 @@ pub fn classify_file(path: &Path) -> Option<FormatStrategy> {
     if GRAPHQL_EXTENSIONS.contains(ext) {
         return Some(FormatStrategy::Native(NativeLanguage::Graphql));
     }
+    if ext == "sql" {
+        return Some(FormatStrategy::Native(NativeLanguage::Sql));
+    }
     if let Some(variant) = css_variant(ext) {
         return Some(FormatStrategy::Native(NativeLanguage::Css(variant)));
     }
@@ -122,6 +125,7 @@ impl FormatStrategy {
 pub enum NativeLanguage {
     Js(SourceType),
     Graphql,
+    Sql,
     /// The fence-derived variant;
     /// the css-in-js typed context overrides it to Scss + placeholders at dispatch time (see the css branch).
     Css(CssVariant),
@@ -137,6 +141,7 @@ impl NativeLanguage {
         match self {
             Self::Js(_) => "js",
             Self::Graphql => "graphql",
+            Self::Sql => "sql",
             Self::Css(_) => "css",
             Self::Yaml => "yaml",
             Self::Json(_) => "json",
@@ -461,6 +466,20 @@ fn is_extra_js_file(file_name: &str, ext: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sql_files_route_to_native_sql() {
+        for name in ["query.sql", "migrations/001_create_users.sql", "schema.sql"] {
+            assert!(matches!(
+                classify_file(Path::new(name)),
+                Some(FormatStrategy::Native(NativeLanguage::Sql))
+            ));
+        }
+        assert!(matches!(
+            classify_as(Language::Sql, Path::new("query.txt")),
+            Some(FormatStrategy::Native(NativeLanguage::Sql))
+        ));
+    }
 
     #[test]
     fn exclude_filenames_are_not_js_or_ts() {

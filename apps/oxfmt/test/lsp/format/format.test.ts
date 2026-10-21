@@ -16,6 +16,7 @@ describe("LSP formatting", () => {
       ["format/test.svelte", "svelte"],
       ["format/test.astro", "astro"],
       ["format/test.toml", "toml"],
+      ["format/test.sql", "sql"],
       ["format/formatted.ts", "typescript"],
       ["format/test.txt", "plaintext"],
     ])("should handle %s", async (path, languageId) => {
@@ -34,6 +35,7 @@ describe("LSP formatting", () => {
       ["config-astro/test.astro", "astro"],
       ["config-associations/test.html", "html"],
       ["config-sort-imports/test.js", "javascript"],
+      ["config-sql/test.ts", "typescript"],
       ["config-sort-tailwindcss/test.tsx", "typescriptreact"],
       ["config-sort-tailwindcss/test.vue", "vue"],
       ["config-sort-both/test.jsx", "javascriptreact"],

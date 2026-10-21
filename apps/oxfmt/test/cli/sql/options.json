@@ -1,0 +1,10 @@
+[
+  { "cwd": "basic", "args": ["query.ts", "off.ts"] },
+  { "cwd": "basic", "args": ["--stdin-filepath=query.ts"], "stdin": "basic/query.ts" },
+  { "cwd": "invalid", "args": ["query.ts"] },
+  { "cwd": "standalone", "args": ["--check", "."] },
+  { "cwd": "standalone", "args": ["."] },
+  { "cwd": "standalone", "args": ["--stdin-filepath=query.sql"], "stdin": "standalone/query.sql" },
+  { "cwd": "standalone-invalid", "args": ["broken.sql"] },
+  { "cwd": "basic", "args": ["query.sql", "off.sql"] }
+]

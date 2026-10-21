@@ -48,6 +48,9 @@ pub struct JsFormatOptions {
     /// When true, HTML-in-JS templates always use hard line breaks for wrapping.
     pub html_whitespace_sensitivity_ignore: bool,
 
+    /// Recognize SQL templates when the host installs a SQL formatting plugin.
+    pub sql_plugin: bool,
+
     /// Controls the position of operators in binary expressions.
     ///
     /// Accepted values are:

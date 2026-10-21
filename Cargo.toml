@@ -1,7 +1,14 @@
 [workspace]
 resolver = "3"
 members = ["apps/*", "crates/*", "napi/*", "tasks/*"]
-exclude = ["apps/shared", "tasks/lint_rules", "tasks/e2e"]
+exclude = [
+  "apps/shared",
+  "tasks/lint_rules",
+  "tasks/e2e",
+  "vendor/sqruff/sqruff-lib",
+  "vendor/sqruff/sqruff-lib-core",
+  "vendor/sqruff/sqruff-lib-dialects",
+]
 
 [workspace.package]
 authors = ["Boshen <boshenc@gmail.com>", "Oxc contributors"]
@@ -167,6 +174,7 @@ oxc_formatter_graphql = { path = "crates/oxc_formatter_graphql" } # GraphQL form
 oxc_formatter_json = { path = "crates/oxc_formatter_json" } # JSON formatter
 oxc_formatter_markdown = { path = "crates/oxc_formatter_markdown" } # Markdown formatter
 oxc_formatter_tests = { path = "crates/oxc_formatter_tests" } # Formatter test infrastructure (fixture codegen + harness)
+oxc_formatter_sql = { path = "crates/oxc_formatter_sql" }
 oxc_formatter_toml = { path = "crates/oxc_formatter_toml" } # TOML formatter
 oxc_formatter_yaml = { path = "crates/oxc_formatter_yaml" } # YAML formatter
 oxc_language_server = { path = "crates/oxc_language_server", default-features = false } # Language server
@@ -298,6 +306,9 @@ ignored = [
 # Force the registry request to resolve to the workspace copy so there's a single instance.
 [patch.crates-io]
 oxc_allocator = { path = "crates/oxc_allocator" }
+sqruff-lib = { path = "vendor/sqruff/sqruff-lib" }
+sqruff-lib-core = { path = "vendor/sqruff/sqruff-lib-core" }
+sqruff-lib-dialects = { path = "vendor/sqruff/sqruff-lib-dialects" }
 
 [profile.dev]
 # Disabling debug info speeds up local and CI builds,

@@ -2,6 +2,7 @@ mod css;
 mod graphql;
 mod html;
 mod markdown;
+mod sql;
 
 use oxc_allocator::{Allocator, ArenaStringBuilder, ArenaVec};
 use oxc_ast::ast::*;
@@ -19,9 +20,19 @@ enum EmbedLanguage {
     Graphql,
     Html,
     Markdown,
+    Sql,
 }
 
-fn tagged_template_language(tagged: &TaggedTemplateExpression<'_>) -> Option<EmbedLanguage> {
+fn tagged_template_language(
+    tagged: &TaggedTemplateExpression<'_>,
+    f: &JsFormatter<'_, '_>,
+) -> Option<EmbedLanguage> {
+    if f.options().sql_plugin
+        && (get_tag_name(&tagged.tag) == Some("sql")
+            || matches!(tagged.tag.get_inner_expression(), Expression::StaticMemberExpression(member) if member.property.name == "sql"))
+    {
+        return Some(EmbedLanguage::Sql);
+    }
     match get_tag_name(&tagged.tag)? {
         "css" | "styled" => Some(EmbedLanguage::Css),
         "gql" | "graphql" => Some(EmbedLanguage::Graphql),
@@ -55,6 +66,9 @@ fn template_comment_language(
     match source_text.text_for(&comment.content_span()) {
         " HTML " => Some(EmbedLanguage::Html),
         " GraphQL " => Some(EmbedLanguage::Graphql),
+        name if f.options().sql_plugin && name.trim().eq_ignore_ascii_case("sql") => {
+            Some(EmbedLanguage::Sql)
+        }
         _ => None,
     }
 }
@@ -88,11 +102,12 @@ pub(super) fn try_format_embedded_template<'a>(
     if !f.session().has_dispatcher() {
         return false;
     }
-    match tagged_template_language(tagged) {
+    match tagged_template_language(tagged, f) {
         Some(EmbedLanguage::Css) => css::format_css_doc(tagged.quasi(), f),
         Some(EmbedLanguage::Graphql) => graphql::format_graphql_doc(tagged.quasi(), f),
         Some(EmbedLanguage::Html) => html::format_html_doc(tagged.quasi(), f, false),
         Some(EmbedLanguage::Markdown) => markdown::try_embed_markdown(tagged, f),
+        Some(EmbedLanguage::Sql) => sql::format_sql_doc(tagged.quasi(), f),
         None => false,
     }
 }
@@ -131,7 +146,7 @@ pub fn embed_hug(
 
     let (language, template) = match expr {
         Expression::TaggedTemplateExpression(tagged) => {
-            let language = tagged_template_language(tagged)?;
+            let language = tagged_template_language(tagged, f)?;
             // A line comment between the tag and the quasi already breaks the line: ``html // c\n`...` ``
             if f.source_text()
                 .contains_newline_between(tagged.tag.span().end, tagged.quasi.span.start)
@@ -193,6 +208,7 @@ fn try_format_comment_embedded<'a>(
     match template_comment_language(template, f) {
         Some(EmbedLanguage::Html) => html::format_html_doc(template, f, false),
         Some(EmbedLanguage::Graphql) => graphql::format_graphql_doc(template, f),
+        Some(EmbedLanguage::Sql) => sql::format_sql_doc(template, f),
         _ => false,
     }
 }

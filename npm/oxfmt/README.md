@@ -55,3 +55,76 @@ Run
 - `npx oxfmt@latest --help` for quick usage instructions.
 - `npx skills add https://github.com/oxc-project/oxc --skill migrate-oxfmt` to install the [`migrate-oxfmt`](https://skills.sh/oxc-project/oxc/migrate-oxfmt) skill, then run `/migrate-oxfmt` to migrate from Prettier or Biome.
 - See also [migrate from Prettier](https://oxc.rs/docs/guide/usage/formatter/migrate-from-prettier.html).
+
+## SQL formatting
+
+Standalone `.sql` files are formatted by the built-in Sqruff Rust formatter using
+PostgreSQL syntax by default:
+
+```sh
+oxfmt query.sql
+oxfmt --check migrations/
+```
+
+Use `sql.dialect` to select another dialect. `"sql": false` disables SQL formatting.
+The CLI, stdin, Node API, and editor integration support SQL files. Invalid standalone
+SQL produces a formatting error and leaves the file unchanged.
+
+Enable embedded SQL formatting and configure the [Sqruff](https://github.com/quarylabs/sqruff)
+dialect in `.oxfmtrc.json`:
+
+```json
+{ "sql": { "dialect": "postgres" } }
+```
+
+`"sql": true` uses PostgreSQL. Supported dialects are `postgres`, `ansi`, `mysql`,
+`sqlite`, `bigquery`, `snowflake`, `duckdb`, and `tsql`.
+
+The plugin formats `sql` tags (including `sql.type(schema)`), member tags such as
+`Prisma.sql`, templates immediately preceded by `/* SQL */`, and SQL Markdown fences.
+For example:
+
+```ts
+const query = sql`
+  select
+    id,
+    name
+  from users
+  where id = ${userId}
+`;
+```
+
+Only SQL layout rules run. Identifiers, literals, and comments retain their spelling,
+and TypeScript expressions retain their order. The plugin uses cooked template content
+and escapes it when writing the template back. SQL that Sqruff cannot parse, unsupported
+interpolation contexts, and SQL inline configuration directives are preserved.
+
+SQL formatting inherits `tabWidth`, `useTabs`, and `printWidth` from the host file.
+Set `"sql": false` in a file override to disable the plugin, or set
+`"embeddedLanguageFormatting": "off"` to disable all embedded formatting.
+
+Use `sql.excludeRules` and `sql.layout` to retain an existing SQL style with
+[Sqruff layout settings](https://playground.quary.dev/docs/usage/configuration/):
+
+```json
+{
+  "sql": {
+    "dialect": "postgres",
+    "excludeRules": ["LT02", "LT05", "LT06", "LT08", "LT09"],
+    "layout": {
+      "function_contents": { "spacingBefore": "any" },
+      "function_parameter_list": { "spacingBefore": "any" },
+      "referenced_column_list": { "spacingBefore": "any" },
+      "start_bracket": { "spacingBefore": "any" }
+    }
+  }
+}
+```
+
+This preserves existing indentation (LT02), line wrapping (LT05), function spacing
+(LT06), CTE separation (LT08), and SELECT-target layout (LT09). Other layout rules still run. `any` keeps
+the existing spacing at the configured boundary. Type names use Sqruff's snake_case
+syntax names; setting names use Oxfmt's camelCase. Per-type settings also support
+`spacingAfter`, `spacingWithin`, `linePosition`, and `keywordLinePosition`.
+Configure these through Oxfmt; separate `.sqruff` files are not discovered.
+Rule exclusions accept only LT01–LT15, and parsing and token checks always run.

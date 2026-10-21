@@ -1,0 +1,558 @@
+use std::iter::zip;
+use std::ops::{Deref, DerefMut};
+
+use hashbrown::HashSet;
+
+use crate::dialects::syntax::{SyntaxKind, SyntaxSet};
+use crate::errors::SQLParseError;
+use crate::helpers::ToMatchable;
+use crate::parser::context::ParseContext;
+use crate::parser::match_algorithms::{
+    skip_start_index_forward_to_code, skip_stop_index_backward_to_code, trim_to_terminator,
+};
+use crate::parser::match_result::{MatchResult, Matched, Span};
+use crate::parser::matchable::{
+    Matchable, MatchableCacheKey, MatchableTrait, next_matchable_cache_key,
+};
+use crate::parser::segments::{BlockType, ErasedSegment};
+use crate::parser::types::ParseMode;
+
+/// Position any new meta segments relative to the non code section.
+///
+/// It's important that we position the new meta segments appropriately
+/// around any templated sections and any whitespace so that indentation
+/// behaviour works as expected.
+///
+/// There are four valid locations (which may overlap).
+/// 1. Before any non-code
+/// 2. Before the first block templated section (if it's a block opener).
+/// 3. After the last block templated section (if it's a block closer).
+/// 4. After any non code.
+///
+/// If all the metas have a positive indent value then they should go in
+/// position 1 or 3, otherwise we're in position 2 or 4. Within each of
+/// those scenarios it depends on whether an appropriate block end exists.
+fn flush_metas(
+    pre_nc_idx: u32,
+    post_nc_idx: u32,
+    meta_buffer: Vec<SyntaxKind>,
+    segments: &[ErasedSegment],
+) -> Vec<(u32, SyntaxKind)> {
+    let meta_idx = if meta_buffer.iter().all(|it| it.indent_val() >= 0) {
+        let mut meta_idx = pre_nc_idx;
+        for idx in (pre_nc_idx + 1..=post_nc_idx).rev() {
+            let seg = &segments[idx as usize - 1];
+            if seg.is_type(SyntaxKind::Placeholder) {
+                if seg.block_type() == Some(BlockType::BlockEnd) {
+                    meta_idx = idx;
+                } else {
+                    meta_idx = pre_nc_idx;
+                }
+                break;
+            }
+        }
+        meta_idx
+    } else {
+        let mut meta_idx = post_nc_idx;
+        for idx in pre_nc_idx..post_nc_idx {
+            let seg = &segments[idx as usize];
+            if seg.is_type(SyntaxKind::Placeholder) {
+                if seg.block_type() == Some(BlockType::BlockStart) {
+                    meta_idx = idx;
+                } else {
+                    meta_idx = post_nc_idx;
+                }
+                break;
+            }
+        }
+        meta_idx
+    };
+    meta_buffer.into_iter().map(|it| (meta_idx, it)).collect()
+}
+
+#[derive(Debug, Clone)]
+pub struct Sequence {
+    elements: Vec<Matchable>,
+    pub parse_mode: ParseMode,
+    pub allow_gaps: bool,
+    is_optional: bool,
+    pub terminators: Vec<Matchable>,
+    cache_key: MatchableCacheKey,
+}
+
+impl Sequence {
+    pub fn disallow_gaps(&mut self) {
+        self.allow_gaps = false;
+    }
+}
+
+impl Sequence {
+    pub fn new(elements: Vec<Matchable>) -> Self {
+        Self {
+            elements,
+            allow_gaps: true,
+            is_optional: false,
+            parse_mode: ParseMode::Strict,
+            terminators: Vec::new(),
+            cache_key: next_matchable_cache_key(),
+        }
+    }
+
+    pub fn optional(&mut self) {
+        self.is_optional = true;
+    }
+
+    pub fn terminators(mut self, terminators: Vec<Matchable>) -> Self {
+        self.terminators = terminators;
+        self
+    }
+
+    pub fn parse_mode(&mut self, mode: ParseMode) {
+        self.parse_mode = mode;
+    }
+
+    pub fn allow_gaps(mut self, allow_gaps: bool) -> Self {
+        self.allow_gaps = allow_gaps;
+        self
+    }
+}
+
+impl PartialEq for Sequence {
+    fn eq(&self, other: &Self) -> bool {
+        zip(&self.elements, &other.elements).all(|(a, b)| a == b)
+    }
+}
+
+impl MatchableTrait for Sequence {
+    fn elements(&self) -> &[Matchable] {
+        &self.elements
+    }
+
+    fn validation_children(&self) -> Vec<&Matchable> {
+        self.elements
+            .iter()
+            .chain(self.terminators.iter())
+            .collect()
+    }
+
+    fn is_optional(&self) -> bool {
+        self.is_optional
+    }
+
+    fn simple(
+        &self,
+        parse_context: &ParseContext,
+        crumbs: Option<Vec<&str>>,
+    ) -> Option<(HashSet<String>, SyntaxSet)> {
+        let mut simple_raws = HashSet::new();
+        let mut simple_types = SyntaxSet::EMPTY;
+
+        for opt in &self.elements {
+            let (raws, types) = opt.simple(parse_context, crumbs.clone())?;
+
+            simple_raws.extend(raws);
+            simple_types.extend(types);
+
+            if !opt.is_optional() {
+                return Some((simple_raws, simple_types));
+            }
+        }
+
+        (simple_raws, simple_types).into()
+    }
+
+    fn match_segments(
+        &self,
+        segments: &[ErasedSegment],
+        mut idx: u32,
+        parse_context: &mut ParseContext,
+    ) -> Result<MatchResult, SQLParseError> {
+        let start_idx = idx;
+        let mut matched_idx = idx;
+        let mut max_idx = segments.len() as u32;
+        let mut insert_segments = Vec::new();
+        let mut child_matches = Vec::new();
+        let mut first_match = true;
+        let mut meta_buffer = Vec::new();
+
+        if self.parse_mode == ParseMode::Greedy {
+            let terminators =
+                [self.terminators.clone(), parse_context.terminators.clone()].concat();
+
+            max_idx = trim_to_terminator(segments, idx, &terminators, parse_context)?;
+        }
+
+        for elem in &self.elements {
+            if let Some(indent) = elem.as_conditional() {
+                let match_result = indent.match_segments(segments, matched_idx, parse_context)?;
+                for (_, submatch) in match_result.insert_segments {
+                    meta_buffer.push(submatch);
+                }
+                continue;
+            } else if let Some(indent) = elem.as_indent() {
+                meta_buffer.push(indent.kind);
+                continue;
+            }
+
+            idx = if self.allow_gaps {
+                skip_start_index_forward_to_code(segments, matched_idx, max_idx)
+            } else {
+                matched_idx
+            };
+
+            if idx >= max_idx {
+                if elem.is_optional() {
+                    continue;
+                }
+
+                if self.parse_mode == ParseMode::Strict || matched_idx == start_idx {
+                    return Ok(MatchResult::empty_at(idx));
+                }
+
+                insert_segments.extend(meta_buffer.into_iter().map(|meta| (matched_idx, meta)));
+
+                return Ok(MatchResult {
+                    span: Span {
+                        start: start_idx,
+                        end: matched_idx,
+                    },
+                    insert_segments,
+                    child_matches,
+                    matched: Matched::SyntaxKind(SyntaxKind::Unparsable).into(),
+                });
+            }
+
+            let mut elem_match = parse_context.deeper_match(false, &[], |ctx| {
+                elem.match_segments(&segments[..max_idx as usize], idx, ctx)
+            })?;
+
+            if !elem_match.has_match() {
+                if elem.is_optional() {
+                    continue;
+                }
+
+                if self.parse_mode == ParseMode::Strict {
+                    return Ok(MatchResult::empty_at(idx));
+                }
+
+                if self.parse_mode == ParseMode::GreedyOnceStarted && matched_idx == start_idx {
+                    return Ok(MatchResult::empty_at(idx));
+                }
+
+                if matched_idx == start_idx {
+                    return Ok(MatchResult {
+                        span: Span {
+                            start: start_idx,
+                            end: max_idx,
+                        },
+                        matched: Matched::SyntaxKind(SyntaxKind::Unparsable).into(),
+                        ..MatchResult::default()
+                    });
+                }
+
+                child_matches.push(MatchResult {
+                    span: Span {
+                        start: skip_start_index_forward_to_code(segments, matched_idx, max_idx),
+                        end: max_idx,
+                    },
+                    matched: Matched::SyntaxKind(SyntaxKind::Unparsable).into(),
+                    ..MatchResult::default()
+                });
+
+                return Ok(MatchResult {
+                    span: Span {
+                        start: start_idx,
+                        end: max_idx,
+                    },
+                    insert_segments,
+                    child_matches,
+                    matched: None,
+                });
+            }
+
+            let meta_buffer = std::mem::take(&mut meta_buffer);
+            insert_segments.append(&mut flush_metas(matched_idx, idx, meta_buffer, segments));
+
+            matched_idx = elem_match.span.end;
+
+            if first_match && self.parse_mode == ParseMode::GreedyOnceStarted {
+                let terminators =
+                    [self.terminators.clone(), parse_context.terminators.clone()].concat();
+                max_idx = trim_to_terminator(segments, matched_idx, &terminators, parse_context)?;
+                first_match = false;
+            }
+
+            if elem_match.matched.is_some() {
+                child_matches.push(elem_match);
+                continue;
+            }
+
+            child_matches.append(&mut elem_match.child_matches);
+            insert_segments.append(&mut elem_match.insert_segments);
+        }
+
+        insert_segments.extend(meta_buffer.into_iter().map(|meta| (matched_idx, meta)));
+
+        if matches!(
+            self.parse_mode,
+            ParseMode::Greedy | ParseMode::GreedyOnceStarted
+        ) && max_idx > matched_idx
+        {
+            let idx = skip_start_index_forward_to_code(segments, matched_idx, max_idx);
+            let stop_idx = skip_stop_index_backward_to_code(segments, max_idx, idx);
+
+            if stop_idx > idx {
+                child_matches.push(MatchResult {
+                    span: Span {
+                        start: idx,
+                        end: stop_idx,
+                    },
+                    matched: Matched::SyntaxKind(SyntaxKind::Unparsable).into(),
+                    ..Default::default()
+                });
+                matched_idx = stop_idx;
+            }
+        }
+
+        Ok(MatchResult {
+            span: Span {
+                start: start_idx,
+                end: matched_idx,
+            },
+            matched: None,
+            insert_segments,
+            child_matches,
+        })
+    }
+
+    fn cache_key(&self) -> MatchableCacheKey {
+        self.cache_key
+    }
+
+    fn copy(
+        &self,
+        insert: Option<Vec<Matchable>>,
+        at: Option<usize>,
+        before: Option<Matchable>,
+        remove: Option<Vec<Matchable>>,
+        terminators: Vec<Matchable>,
+        replace_terminators: bool,
+    ) -> Matchable {
+        let mut new_elements = self.elements.clone();
+
+        if let Some(insert_elements) = insert {
+            if let Some(before_element) = before {
+                if let Some(index) = self.elements.iter().position(|e| e == &before_element) {
+                    new_elements.splice(index..index, insert_elements);
+                } else {
+                    panic!("Element for insertion before not found");
+                }
+            } else if let Some(at_index) = at {
+                new_elements.splice(at_index..at_index, insert_elements);
+            } else {
+                new_elements.extend(insert_elements);
+            }
+        }
+
+        if let Some(remove_elements) = remove {
+            new_elements.retain(|elem| !remove_elements.contains(elem));
+        }
+
+        let mut new_grammar = self.clone();
+
+        new_grammar.elements = new_elements;
+        new_grammar.terminators = if replace_terminators {
+            terminators
+        } else {
+            [self.terminators.clone(), terminators].concat()
+        };
+
+        new_grammar.to_matchable()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Bracketed {
+    pub bracket_type: &'static str,
+    pub bracket_pairs_set: &'static str,
+    allow_gaps: bool,
+    pub this: Sequence,
+}
+
+impl Bracketed {
+    pub fn new(args: Vec<Matchable>) -> Self {
+        Self {
+            bracket_type: "round",
+            bracket_pairs_set: "bracket_pairs",
+            allow_gaps: true,
+            this: Sequence::new(args),
+        }
+    }
+}
+
+type BracketInfo = Result<(Matchable, Matchable, bool), String>;
+
+impl Bracketed {
+    pub fn allow_gaps(mut self, allow_gaps: bool) -> Self {
+        self.allow_gaps = allow_gaps;
+        self.this.allow_gaps = allow_gaps;
+        self
+    }
+
+    pub fn bracket_type(&mut self, bracket_type: &'static str) {
+        self.bracket_type = bracket_type;
+    }
+
+    fn get_bracket_from_dialect(&self, parse_context: &ParseContext) -> BracketInfo {
+        let bracket_pairs = parse_context.dialect().bracket_sets(self.bracket_pairs_set);
+        for (bracket_type, start_ref, end_ref, persists) in bracket_pairs {
+            if bracket_type == self.bracket_type {
+                let start_bracket = parse_context.dialect().r#ref(start_ref);
+                let end_bracket = parse_context.dialect().r#ref(end_ref);
+
+                return Ok((start_bracket, end_bracket, persists));
+            }
+        }
+        Err(format!(
+            "bracket_type {:?} not found in bracket_pairs ({}) of {:?} dialect.",
+            self.bracket_type,
+            self.bracket_pairs_set,
+            parse_context.dialect().name
+        ))
+    }
+}
+
+impl Deref for Bracketed {
+    type Target = Sequence;
+
+    fn deref(&self) -> &Self::Target {
+        &self.this
+    }
+}
+
+impl DerefMut for Bracketed {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.this
+    }
+}
+
+impl MatchableTrait for Bracketed {
+    fn elements(&self) -> &[Matchable] {
+        &self.elements
+    }
+
+    fn validation_children(&self) -> Vec<&Matchable> {
+        self.this.validation_children()
+    }
+
+    fn validation_references(&self, dialect: &crate::dialects::Dialect) -> Vec<&'static str> {
+        dialect
+            .bracket_sets(self.bracket_pairs_set)
+            .into_iter()
+            .filter(|(bracket_type, _, _, _)| *bracket_type == self.bracket_type)
+            .flat_map(|(_, start_ref, end_ref, _)| [start_ref, end_ref])
+            .collect()
+    }
+
+    fn is_optional(&self) -> bool {
+        self.this.is_optional()
+    }
+
+    fn simple(
+        &self,
+        parse_context: &ParseContext,
+        crumbs: Option<Vec<&str>>,
+    ) -> Option<(HashSet<String>, SyntaxSet)> {
+        let (start_bracket, _, _) = self.get_bracket_from_dialect(parse_context).unwrap();
+        start_bracket.simple(parse_context, crumbs)
+    }
+
+    fn match_segments(
+        &self,
+        segments: &[ErasedSegment],
+        idx: u32,
+        parse_context: &mut ParseContext,
+    ) -> Result<MatchResult, SQLParseError> {
+        let (start_bracket, end_bracket, bracket_persists) =
+            self.get_bracket_from_dialect(parse_context).unwrap();
+
+        let start_match = parse_context.deeper_match(false, &[], |ctx| {
+            start_bracket.match_segments(segments, idx, ctx)
+        })?;
+
+        if !start_match.has_match() {
+            return Ok(MatchResult::empty_at(idx));
+        }
+
+        let mut content_start = start_match.span.end;
+        if self.allow_gaps {
+            content_start =
+                skip_start_index_forward_to_code(segments, content_start, segments.len() as u32);
+        }
+
+        let mut content_match =
+            parse_context.deeper_match(true, std::slice::from_ref(&end_bracket), |ctx| {
+                self.this.match_segments(segments, content_start, ctx)
+            })?;
+
+        let gap_start = content_match.span.end;
+        let mut end_idx = gap_start;
+        if self.allow_gaps {
+            end_idx = skip_start_index_forward_to_code(segments, end_idx, segments.len() as u32);
+        }
+
+        let indent_idx = start_match.span.end;
+        let mut child_matches = vec![start_match];
+        if content_match.span.start != content_match.span.end {
+            if content_match.matched.is_some() {
+                child_matches.push(content_match);
+            } else {
+                child_matches.append(&mut content_match.child_matches);
+            }
+        }
+        if end_idx > gap_start {
+            child_matches.push(MatchResult::from_span(gap_start, end_idx));
+        }
+
+        let end_match = if end_idx < segments.len() as u32 {
+            parse_context.deeper_match(false, &[], |ctx| {
+                end_bracket.match_segments(segments, end_idx, ctx)
+            })?
+        } else {
+            MatchResult::empty_at(end_idx)
+        };
+        if !end_match.has_match() {
+            if self.parse_mode == ParseMode::Strict {
+                return Ok(MatchResult::empty_at(idx));
+            }
+            return Err(SQLParseError {
+                description: "Couldn't find closing bracket for opening bracket.".into(),
+                segment: segments[idx as usize].clone().into(),
+            });
+        }
+
+        let end_span = end_match.span;
+        child_matches.push(end_match);
+        let result = MatchResult {
+            span: Span {
+                start: idx,
+                end: end_span.end,
+            },
+            matched: None,
+            insert_segments: vec![
+                (indent_idx, SyntaxKind::Indent),
+                (end_span.start, SyntaxKind::Dedent),
+            ],
+            child_matches,
+        };
+        Ok(if bracket_persists {
+            result.wrap(Matched::SyntaxKind(SyntaxKind::Bracketed))
+        } else {
+            result
+        })
+    }
+
+    fn cache_key(&self) -> MatchableCacheKey {
+        self.this.cache_key()
+    }
+}
