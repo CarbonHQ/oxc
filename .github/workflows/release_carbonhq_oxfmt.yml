@@ -11,7 +11,7 @@ on:
       - "Cargo.*"
       - "rust-toolchain.toml"
       - "crates/**"
-      - "vendor/**"
+      - "third_party/**"
       - "apps/oxfmt/**"
       - "npm/oxfmt/**"
       - "pnpm*"

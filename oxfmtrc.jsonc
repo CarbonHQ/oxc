@@ -2,7 +2,6 @@
   "$schema": "./npm/oxfmt/configuration_schema.json",
   "experimentalOperatorPosition": "start",
   "ignorePatterns": [
-    "vendor/**",
     "**/tests/**",
     // Ignore `fixtures` directories except for `apps/oxlint/test/fixtures`
     "**/fixtures/**",
