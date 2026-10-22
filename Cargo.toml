@@ -299,7 +299,8 @@ ignored = [
 # Force the registry request to resolve to the workspace copy so there's a single instance.
 [patch.crates-io]
 oxc_allocator = { path = "crates/oxc_allocator" }
-# Sqruff compatibility/performance fixes; see third_party/sqruff/README.md.
+# Sqruff compatibility/performance fixes:
+# https://github.com/CarbonHQ/sqruff/blob/codex/oxfmt/README.md#about-this-fork
 sqruff-lib = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "cafbdc311f9ac963880a1f383e85d18f31670a6c" }
 sqruff-lib-core = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "cafbdc311f9ac963880a1f383e85d18f31670a6c" }
 sqruff-lib-dialects = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "cafbdc311f9ac963880a1f383e85d18f31670a6c" }

@@ -79,6 +79,9 @@ oxfmt query.sql
 oxfmt --check migrations/
 ```
 
+The [CarbonHQ Sqruff fork](https://github.com/CarbonHQ/sqruff/blob/codex/oxfmt/README.md#about-this-fork)
+documents its parsing fixes, formatting stability fixes, and performance changes.
+
 Use `sql.dialect` to select another dialect. `"sql": false` disables SQL formatting.
 The CLI, stdin, Node API, and editor integration support SQL files. Invalid standalone
 SQL produces a formatting error and leaves the file unchanged.

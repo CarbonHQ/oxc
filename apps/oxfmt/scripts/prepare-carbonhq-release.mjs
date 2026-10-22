@@ -29,8 +29,9 @@ assert.equal(
 );
 const targets = values.target ?? metadata.napi.targets;
 assert(targets.length > 0 && new Set(targets).size === targets.length);
-for (const target of targets)
+for (const target of targets) {
   assert(metadata.napi.targets.includes(target), `Unknown target: ${target}`);
+}
 assert(existsSync(artifacts), `Missing artifacts directory: ${artifacts}`);
 assert(!existsSync(output), `Output already exists; choose a fresh directory: ${output}`);
 mkdirSync(dirname(output), { recursive: true });
@@ -77,7 +78,6 @@ function licenses(dir) {
   const thirdParty = join(dir, "THIRD_PARTY_LICENSES");
   mkdirSync(thirdParty, { recursive: true });
   cpSync(join(repo, "third_party/sqruff/LICENSE"), join(thirdParty, "sqruff-APACHE-2.0.txt"));
-  cpSync(join(repo, "third_party/sqruff/README.md"), join(thirdParty, "sqruff-provenance.md"));
 }
 const packages = readdirSync(bindings).map((name) => join(bindings, name));
 assert.equal(packages.length, targets.length, "Missing native packages");

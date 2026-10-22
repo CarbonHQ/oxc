@@ -1,7 +1,7 @@
 # Oxfmt SQL plugin
 
-This crate wraps Sqruff 0.41.0 with the compatibility patches documented in
-[`third_party/sqruff/README.md`](../../third_party/sqruff/README.md). Cargo pins
+This crate wraps Sqruff 0.41.0 with the compatibility and performance patches documented in
+[the CarbonHQ Sqruff fork](https://github.com/CarbonHQ/sqruff/blob/codex/oxfmt/README.md#about-this-fork). Cargo pins
 the patched dependency to a commit in `CarbonHQ/sqruff`; its sources are not
 vendored in this repository. The patches fix parser
 cache ranges, PostgreSQL `OVERLAY`, quantified/variadic arrays, and stable
