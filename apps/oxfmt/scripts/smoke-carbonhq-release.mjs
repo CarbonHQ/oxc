@@ -51,18 +51,26 @@ execFileSync(process.execPath, [join(installed, "bin/oxfmt"), "--check", html], 
 });
 assert(readFileSync(html, "utf8").includes("  <span>hello</span>"));
 const { format } = await import(pathToFileURL(join(installed, "dist/index.js")).href);
-for (const [file, source, options] of [
+const sqlCases = [
   ["query.sql", "select  a,b from users where id=$1;", {}],
   ["query.ts", "const q=sql`select a,b from users where id=${id}`;", { sql: true }],
   ["query.sql", "select `a`,`b` from `users`;", { sql: { dialect: "mysql" } }],
-]) {
-  const result = await format(file, source, options);
-  assert.deepEqual(result.errors, []);
-  assert.notEqual(result.code, source);
-  const second = await format(file, result.code, options);
-  assert.deepEqual(second.errors, []);
-  assert.equal(second.code, result.code);
-}
+];
+await Promise.all(
+  sqlCases.map(async ([file, source, options]) => {
+    const result = await format(file, source, options);
+    assert.deepEqual(result.errors, []);
+    assert.notEqual(result.code, source);
+    const second = await format(file, result.code, options);
+    assert.deepEqual(second.errors, []);
+    assert.equal(second.code, result.code);
+  }),
+);
+const singleTarget = await format("query.sql", "select a from users;", {
+  sql: { singleTargetPolicy: "new_line" },
+});
+assert.deepEqual(singleTarget.errors, []);
+assert.equal(singleTarget.code, "select\n  a\nfrom users;\n");
 console.log(
   `Installed ${main.name}@${release.version} with ${bindingName}; CLI, HTML worker, SQL, and embedded SQL pass.`,
 );

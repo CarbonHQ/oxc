@@ -1,6 +1,6 @@
 {
   "name": "@carbonhq/oxfmt",
-  "version": "0.74.0-sql.0",
+  "version": "0.74.0-sql.1",
   "description": "CarbonHQ's Oxfmt fork with native SQL formatting",
   "keywords": [
     "formatter",

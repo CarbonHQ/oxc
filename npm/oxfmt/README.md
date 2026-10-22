@@ -119,6 +119,11 @@ SQL formatting inherits `tabWidth`, `useTabs`, and `printWidth` from the host fi
 Set `"sql": false` in a file override to disable the plugin, or set
 `"embeddedLanguageFormatting": "off"` to disable all embedded formatting.
 
+Set `sql.singleTargetPolicy` to `"new_line"` to put even a single SELECT target
+on its own line. The default, `"same_line"`, retains Sqruff's usual behavior.
+This maps to Sqruff's `single_target_policy` option for LT09 and applies to
+standalone SQL and embedded SQL.
+
 Use `sql.excludeRules` and `sql.layout` to retain an existing SQL style with
 [Sqruff layout settings](https://playground.quary.dev/docs/usage/configuration/):
 

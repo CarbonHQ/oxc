@@ -933,6 +933,14 @@ Per-syntax-type Sqruff layout settings, using its snake_case type names
 positioning settings are accepted.
 
 
+### sql.singleTargetPolicy
+
+type: `"same_line" | "new_line"`
+
+
+Placement of a single SELECT target. Defaults to Sqruff's `same_line`.
+
+
 ## svelte
 
 type: `object | boolean`

@@ -433,6 +433,9 @@ pub struct SqlConfig {
     /// preservation checks remain enabled.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub exclude_rules: Vec<SqlLayoutRule>,
+    /// Placement of a single SELECT target. Defaults to Sqruff's `same_line`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_target_policy: Option<SqlSingleTargetPolicy>,
     /// Per-syntax-type Sqruff layout settings, using its snake_case type names
     /// (for example, function_contents or where_clause). Only spacing and line
     /// positioning settings are accepted.
@@ -441,6 +444,23 @@ pub struct SqlConfig {
         deserialize_with = "deserialize_sql_layout"
     )]
     pub layout: BTreeMap<String, SqlLayoutTypeConfig>,
+}
+
+/// Placement of a SELECT clause containing one target.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SqlSingleTargetPolicy {
+    SameLine,
+    NewLine,
+}
+
+impl SqlSingleTargetPolicy {
+    fn name(self) -> &'static str {
+        match self {
+            Self::SameLine => "same_line",
+            Self::NewLine => "new_line",
+        }
+    }
 }
 
 fn deserialize_sql_layout<'de, D>(
@@ -638,6 +658,9 @@ impl FormatConfig {
             Some(SqlUserConfig::Object(options)) => (
                 options.dialect,
                 oxc_formatter_sql::SqlLayoutSettings {
+                    single_target_policy: options
+                        .single_target_policy
+                        .map(SqlSingleTargetPolicy::name),
                     exclude_rules: options
                         .exclude_rules
                         .iter()

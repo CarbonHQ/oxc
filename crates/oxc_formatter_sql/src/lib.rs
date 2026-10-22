@@ -72,6 +72,8 @@ pub struct SqlFormatOptions {
 pub struct SqlLayoutSettings {
     /// Layout rule codes to exclude (LT01 through LT15).
     pub exclude_rules: Vec<String>,
+    /// Placement of a SELECT clause containing one target.
+    pub single_target_policy: Option<&'static str>,
     /// Per-syntax-type spacing and line positioning.
     pub types: BTreeMap<String, SqlLayoutTypeSettings>,
 }
@@ -120,6 +122,13 @@ fn build_linter(options: &SqlFormatOptions) -> Result<Linter, OxcDiagnostic> {
         return Err(OxcDiagnostic::error("Unsupported SQL dialect"));
     }
     let settings = &options.settings;
+    if let Some(policy) = settings.single_target_policy
+        && !matches!(policy, "same_line" | "new_line")
+    {
+        return Err(OxcDiagnostic::error(format!(
+            "Unsupported SQL single-target policy: {policy}"
+        )));
+    }
     for rule in &settings.exclude_rules {
         if !(rule.len() == 4
             && rule.starts_with("LT")
@@ -168,6 +177,10 @@ fn build_linter(options: &SqlFormatOptions) -> Result<Linter, OxcDiagnostic> {
         options.core.line_width,
         options.core.indent_width.value().max(1),
     );
+    if let Some(policy) = settings.single_target_policy {
+        writeln!(source, "\n[sqruff:rules:layout.select_targets]\nsingle_target_policy = {policy}")
+            .unwrap();
+    }
     for (kind, setting) in &settings.types {
         writeln!(source, "\n[sqruff:layout:type:{kind}]").unwrap();
         for (name, value) in [
@@ -407,6 +420,24 @@ mod tests {
         let output = format(source, options("postgres")).unwrap();
         assert_eq!(output, "select\n  a,\n  b\nfrom users\nwhere id = 1;\n");
         assert_eq!(format(&output, options("postgres")).unwrap(), output);
+    }
+
+    #[test]
+    fn single_target_policy_is_stable_and_has_its_own_cache_entry() {
+        let source = "select a from users;";
+        let defaults = format(source, options("postgres")).unwrap();
+        assert_eq!(defaults, "select a from users;\n");
+        let mut configured = options("postgres");
+        configured.settings.single_target_policy = Some("new_line");
+        let output = format(source, configured.clone()).unwrap();
+        assert_eq!(output, "select\n  a\nfrom users;\n");
+        assert_eq!(format(&output, configured).unwrap(), output);
+        assert_eq!(format(source, options("postgres")).unwrap(), defaults);
+        for policy in ["invalid", "new_line\nrules = all"] {
+            let mut invalid = options("postgres");
+            invalid.settings.single_target_policy = Some(policy);
+            assert!(SqlFormatter::new(invalid).is_err());
+        }
     }
 
     #[test]

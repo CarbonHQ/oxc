@@ -11,6 +11,17 @@ async function sqlFormat(source: string, options: FormatConfig = { sql: true }, 
 }
 
 describe("Sqruff SQL plugin", () => {
+  it("puts single SELECT targets on a new line in files and templates", async () => {
+    const source = "select a from users;";
+    const options: FormatConfig = { sql: { singleTargetPolicy: "new_line" } };
+    expect(await sqlFormat(source, options, "query.sql")).toBe("select\n  a\nfrom users;\n");
+    const embedded = await sqlFormat(`const q = sql\`${source}\`;`, options);
+    expect(embedded).toMatch(/select\n\s+a\n\s+from users/);
+    expect(await sqlFormat(source, { sql: { singleTargetPolicy: "same_line" } }, "query.sql")).toBe(
+      "select a from users;\n",
+    );
+  });
+
   it("applies Sqruff layout exclusions and spacing to files and templates", async () => {
     const options: FormatConfig = {
       sql: {
@@ -53,17 +64,20 @@ describe("Sqruff SQL plugin", () => {
   it("rejects unsupported Sqruff configuration before formatting", async () => {
     const source = "const q = sql`select 1`;";
     const invalidOptions = [
+      { sql: { singleTargetPolicy: "invalid" } },
       { sql: { excludeRules: ["CP01"] } },
       { sql: { layout: { unknown_type: { spacingBefore: "any" } } } },
       { sql: { layout: { function_contents: { spacingBefore: "invalid" } } } },
       { sql: { layout: { where_clause: { keywordLinePosition: "invalid" } } } },
       { sql: { templater: "jinja" } },
     ] as unknown as FormatConfig[];
-    for (const options of invalidOptions) {
-      const result = await format("query.ts", source, options);
-      expect(result.errors).toHaveLength(1);
-      expect(result.code).toBe(source);
-    }
+    await Promise.all(
+      invalidOptions.map(async (options) => {
+        const result = await format("query.ts", source, options);
+        expect(result.errors).toHaveLength(1);
+        expect(result.code).toBe(source);
+      }),
+    );
   });
 
   it("formats standalone SQL with default options and preserves literals", async () => {

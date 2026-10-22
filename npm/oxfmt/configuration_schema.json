@@ -1053,6 +1053,15 @@
             "$ref": "#/definitions/SqlLayoutTypeConfig"
           },
           "markdownDescription": "Per-syntax-type Sqruff layout settings, using its snake_case type names\n(for example, function_contents or where_clause). Only spacing and line\npositioning settings are accepted."
+        },
+        "singleTargetPolicy": {
+          "description": "Placement of a single SELECT target. Defaults to Sqruff's `same_line`.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSingleTargetPolicy"
+            }
+          ],
+          "markdownDescription": "Placement of a single SELECT target. Defaults to Sqruff's `same_line`."
         }
       },
       "additionalProperties": false,
@@ -1157,6 +1166,15 @@
         "alone"
       ],
       "markdownDescription": "Placement of a Sqruff syntax node or its leading keyword."
+    },
+    "SqlSingleTargetPolicy": {
+      "description": "Placement of a SELECT clause containing one target.",
+      "type": "string",
+      "enum": [
+        "same_line",
+        "new_line"
+      ],
+      "markdownDescription": "Placement of a SELECT clause containing one target."
     },
     "SqlSpacing": {
       "description": "Sqruff spacing constraints. Inline constraints also disallow line breaks.",

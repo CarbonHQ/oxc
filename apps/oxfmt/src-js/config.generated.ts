@@ -104,6 +104,10 @@ export type SqlLinePosition = "leading" | "trailing" | "alone";
  * Sqruff spacing constraints. Inline constraints also disallow line breaks.
  */
 export type SqlSpacing = "single" | "touch" | "any" | "single:inline" | "touch:inline";
+/**
+ * Placement of a SELECT clause containing one target.
+ */
+export type SqlSingleTargetPolicy = "same_line" | "new_line";
 export type SvelteUserConfig = boolean | SvelteConfig;
 export type TrailingCommaConfig = "all" | "es5" | "none";
 
@@ -1029,6 +1033,10 @@ export interface SqlConfig {
   layout?: {
     [k: string]: SqlLayoutTypeConfig;
   };
+  /**
+   * Placement of a single SELECT target. Defaults to Sqruff's `same_line`.
+   */
+  singleTargetPolicy?: SqlSingleTargetPolicy;
 }
 /**
  * Layout settings for one Sqruff syntax type.
