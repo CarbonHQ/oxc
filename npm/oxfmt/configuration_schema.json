@@ -187,6 +187,15 @@
       ],
       "markdownDescription": "Sort Tailwind CSS classes.\n\nUses the same algorithm as [prettier-plugin-tailwindcss](https://github.com/tailwindlabs/prettier-plugin-tailwindcss).\nOption names omit the `tailwind` prefix used in the original plugin (e.g. `config` instead of `tailwindConfig`).\n\nPass `true` or an object to enable, `false` to disable.\n\n- Languages: JS, JSX, TS, TSX, HTML, Vue, Angular, Handlebars, CSS, SCSS, Less, Svelte, Astro\n- Default: Disabled"
     },
+    "sql": {
+      "description": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files",
+      "allOf": [
+        {
+          "$ref": "#/definitions/SqlUserConfig"
+        }
+      ],
+      "markdownDescription": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files"
+    },
     "svelte": {
       "description": "Options for `prettier-plugin-svelte`.\n\nPass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).\nSetting `true` resets to defaults, dropping options inherited from a parent scope.\n\nNOTE: `prettier-plugin-svelte` requires the `svelte` package (`svelte/compiler`) at runtime.\nOxfmt does NOT bundle it, so install it in your project, otherwise formatting fails.\n\n- Languages: Svelte\n- Default: Disabled",
       "allOf": [
@@ -517,6 +526,15 @@
           ],
           "markdownDescription": "Sort Tailwind CSS classes.\n\nUses the same algorithm as [prettier-plugin-tailwindcss](https://github.com/tailwindlabs/prettier-plugin-tailwindcss).\nOption names omit the `tailwind` prefix used in the original plugin (e.g. `config` instead of `tailwindConfig`).\n\nPass `true` or an object to enable, `false` to disable.\n\n- Languages: JS, JSX, TS, TSX, HTML, Vue, Angular, Handlebars, CSS, SCSS, Less, Svelte, Astro\n- Default: Disabled"
         },
+        "sql": {
+          "description": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlUserConfig"
+            }
+          ],
+          "markdownDescription": "Enable the Sqruff SQL formatting plugin for `sql` tagged templates,\n`/* SQL */` templates, and SQL Markdown fences.\nOnly layout rules run; invalid SQL is preserved. Options inherit the host's\n`tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: \"off\"`\ndisables the plugin in embedded content.\nStandalone `.sql` files format by default using PostgreSQL; set `sql` to\n`false` to disable SQL formatting, or an object to choose their dialect.\n\n- Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files"
+        },
         "svelte": {
           "description": "Options for `prettier-plugin-svelte`.\n\nPass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).\nSetting `true` resets to defaults, dropping options inherited from a parent scope.\n\nNOTE: `prettier-plugin-svelte` requires the `svelte` package (`svelte/compiler`) at runtime.\nOxfmt does NOT bundle it, so install it in your project, otherwise formatting fails.\n\n- Languages: Svelte\n- Default: Disabled",
           "allOf": [
@@ -694,6 +712,7 @@
         "scss",
         "less",
         "graphql",
+        "sql",
         "yaml",
         "markdown",
         "toml",
@@ -1004,6 +1023,460 @@
           "$ref": "#/definitions/SortTailwindcssConfig"
         }
       ]
+    },
+    "SqlAlignmentCoordinateSpace": {
+      "type": "string",
+      "enum": [
+        "source",
+        "templated"
+      ]
+    },
+    "SqlCapitalizationSettings": {
+      "description": "Optional case normalization. Only configured targets enable their CP rule.\nQuoted identifiers, string literals, and comments are always preserved.",
+      "type": "object",
+      "properties": {
+        "functions": {
+          "$ref": "#/definitions/SqlCaseSettings"
+        },
+        "identifiers": {
+          "$ref": "#/definitions/SqlCaseSettings"
+        },
+        "keywords": {
+          "$ref": "#/definitions/SqlCaseSettings"
+        },
+        "literals": {
+          "$ref": "#/definitions/SqlCaseSettings"
+        },
+        "types": {
+          "$ref": "#/definitions/SqlCaseSettings"
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Optional case normalization. Only configured targets enable their CP rule.\nQuoted identifiers, string literals, and comments are always preserved."
+    },
+    "SqlCasePolicy": {
+      "description": "Case styles supported by Sqruff. Keywords and literals use the first four.\nStyles that would rename a token rather than just change its case are rejected.",
+      "type": "string",
+      "enum": [
+        "consistent",
+        "upper",
+        "lower",
+        "capitalise",
+        "pascal",
+        "camel",
+        "snake"
+      ],
+      "markdownDescription": "Case styles supported by Sqruff. Keywords and literals use the first four.\nStyles that would rename a token rather than just change its case are rejected."
+    },
+    "SqlCaseSettings": {
+      "description": "Capitalization policy and exceptions for one target. Regexes are Rust regexes.\n`unquotedIdentifiersPolicy` applies only to the identifiers target.",
+      "type": "object",
+      "properties": {
+        "ignoreWords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ignoreWordsRegex": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "policy": {
+          "$ref": "#/definitions/SqlCasePolicy"
+        },
+        "unquotedIdentifiersPolicy": {
+          "$ref": "#/definitions/SqlIdentifierPolicy"
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Capitalization policy and exceptions for one target. Regexes are Rust regexes.\n`unquotedIdentifiersPolicy` applies only to the identifiers target."
+    },
+    "SqlConfig": {
+      "description": "SQL plugin options.",
+      "type": "object",
+      "properties": {
+        "capitalization": {
+          "description": "Opt-in CP01–CP05 case normalization. Quoted SQL content stays unchanged.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlCapitalizationSettings"
+            }
+          ],
+          "markdownDescription": "Opt-in CP01–CP05 case normalization. Quoted SQL content stays unchanged."
+        },
+        "dialect": {
+          "description": "SQL dialect. Defaults to PostgreSQL.",
+          "default": "postgres",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlDialect"
+            }
+          ],
+          "markdownDescription": "SQL dialect. Defaults to PostgreSQL."
+        },
+        "excludeRules": {
+          "description": "Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SqlLayoutRule"
+          },
+          "markdownDescription": "Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled."
+        },
+        "indentation": {
+          "description": "Sqruff indentation structure; width and characters inherit tabWidth/useTabs.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlIndentationSettings"
+            }
+          ],
+          "markdownDescription": "Sqruff indentation structure; width and characters inherit tabWidth/useTabs."
+        },
+        "layout": {
+          "description": "Per-syntax-type Sqruff layout settings, using its snake_case type names\n(for example, function_contents or where_clause). Only spacing and line\npositioning settings are accepted.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/SqlLayoutTypeConfig"
+          },
+          "markdownDescription": "Per-syntax-type Sqruff layout settings, using its snake_case type names\n(for example, function_contents or where_clause). Only spacing and line\npositioning settings are accepted."
+        },
+        "longLines": {
+          "description": "LT05 exceptions. Maximum line length uses sql.printWidth, falling back to printWidth.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlLongLineSettings"
+            }
+          ],
+          "markdownDescription": "LT05 exceptions. Maximum line length uses sql.printWidth, falling back to printWidth."
+        },
+        "newlines": {
+          "description": "LT15 blank-line limits.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlNewlineSettings"
+            }
+          ],
+          "markdownDescription": "LT15 blank-line limits."
+        },
+        "printWidth": {
+          "description": "Maximum SQL line length, including surrounding indentation and interpolations.\nApplies to standalone SQL and embedded SQL independently of the host language.\nDefaults to printWidth.",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0,
+          "markdownDescription": "Maximum SQL line length, including surrounding indentation and interpolations.\nApplies to standalone SQL and embedded SQL independently of the host language.\nDefaults to printWidth."
+        },
+        "singleTargetPolicy": {
+          "description": "Placement of a single SELECT target. Defaults to Sqruff's `same_line`.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSingleTargetPolicy"
+            }
+          ],
+          "markdownDescription": "Placement of a single SELECT target. Defaults to Sqruff's `same_line`."
+        },
+        "wildcardPolicy": {
+          "description": "LT09 wildcard counting. Defaults to single.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlWildcardPolicy"
+            }
+          ],
+          "markdownDescription": "LT09 wildcard counting. Defaults to single."
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "SQL plugin options."
+    },
+    "SqlDialect": {
+      "description": "SQL dialects accepted by the plugin.",
+      "type": "string",
+      "enum": [
+        "postgres",
+        "ansi",
+        "mysql",
+        "sqlite",
+        "bigquery",
+        "snowflake",
+        "duckdb",
+        "tsql"
+      ],
+      "markdownDescription": "SQL dialects accepted by the plugin."
+    },
+    "SqlIdentifierPolicy": {
+      "type": "string",
+      "enum": [
+        "all",
+        "none",
+        "aliases",
+        "column_aliases",
+        "table_aliases"
+      ]
+    },
+    "SqlImplicitIndents": {
+      "type": "string",
+      "enum": [
+        "forbid",
+        "allow",
+        "require"
+      ]
+    },
+    "SqlIndentationSettings": {
+      "description": "Sqruff indentation choices. Width and indent characters inherit `tabWidth` and `useTabs`.",
+      "type": "object",
+      "properties": {
+        "hangingIndents": {
+          "type": "boolean"
+        },
+        "ignoreCommentLines": {
+          "type": "boolean"
+        },
+        "implicitIndents": {
+          "$ref": "#/definitions/SqlImplicitIndents"
+        },
+        "indentedCtes": {
+          "type": "boolean"
+        },
+        "indentedJoins": {
+          "type": "boolean"
+        },
+        "indentedJoinsOn": {
+          "type": "boolean"
+        },
+        "indentedOnContents": {
+          "type": "boolean"
+        },
+        "indentedThen": {
+          "type": "boolean"
+        },
+        "indentedThenContents": {
+          "type": "boolean"
+        },
+        "indentedUsingOn": {
+          "type": "boolean"
+        },
+        "skipImplicitIndentsIn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skipIndentationIn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "templateBlocksIndent": {
+          "type": "boolean"
+        },
+        "trailingComments": {
+          "$ref": "#/definitions/SqlTrailingComments"
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Sqruff indentation choices. Width and indent characters inherit `tabWidth` and `useTabs`."
+    },
+    "SqlLayoutRule": {
+      "description": "Sqruff formatting rule codes accepted by the SQL formatter.",
+      "type": "string",
+      "enum": [
+        "LT01",
+        "LT02",
+        "LT03",
+        "LT04",
+        "LT05",
+        "LT06",
+        "LT07",
+        "LT08",
+        "LT09",
+        "LT10",
+        "LT11",
+        "LT12",
+        "LT13",
+        "LT14",
+        "LT15",
+        "CP01",
+        "CP02",
+        "CP03",
+        "CP04",
+        "CP05"
+      ],
+      "markdownDescription": "Sqruff formatting rule codes accepted by the SQL formatter."
+    },
+    "SqlLayoutTypeConfig": {
+      "description": "Layout settings for one Sqruff syntax type.",
+      "type": "object",
+      "properties": {
+        "alignScope": {
+          "description": "Syntax type bounding whitespace alignment.",
+          "type": "string",
+          "markdownDescription": "Syntax type bounding whitespace alignment."
+        },
+        "alignWithin": {
+          "description": "Syntax type within which aligned whitespace is measured.",
+          "type": "string",
+          "markdownDescription": "Syntax type within which aligned whitespace is measured."
+        },
+        "alignmentCoordinateSpace": {
+          "description": "Alignment coordinate space: source or templated.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlAlignmentCoordinateSpace"
+            }
+          ],
+          "markdownDescription": "Alignment coordinate space: source or templated."
+        },
+        "keywordLinePosition": {
+          "description": "Placement of the node's leading keyword relative to its content.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlLinePosition"
+            }
+          ],
+          "markdownDescription": "Placement of the node's leading keyword relative to its content."
+        },
+        "keywordLinePositionExclusions": {
+          "description": "Ancestor syntax types exempt from keyword positioning. An empty list clears defaults.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Ancestor syntax types exempt from keyword positioning. An empty list clears defaults."
+        },
+        "linePosition": {
+          "description": "Placement of the whole node relative to adjacent lines.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlLinePosition"
+            }
+          ],
+          "markdownDescription": "Placement of the whole node relative to adjacent lines."
+        },
+        "spacingAfter": {
+          "description": "Spacing after the node. `any` preserves existing spacing.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSpacing"
+            }
+          ],
+          "markdownDescription": "Spacing after the node. `any` preserves existing spacing."
+        },
+        "spacingBefore": {
+          "description": "Spacing before the node. `any` preserves existing spacing.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSpacing"
+            }
+          ],
+          "markdownDescription": "Spacing before the node. `any` preserves existing spacing."
+        },
+        "spacingWithin": {
+          "description": "Spacing within the node.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSpacing"
+            }
+          ],
+          "markdownDescription": "Spacing within the node."
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Layout settings for one Sqruff syntax type."
+    },
+    "SqlLinePosition": {
+      "description": "Leading, trailing, or alone, with optional strict/attached/align-following modifiers.\nnone disables keyword line positioning.",
+      "type": "string",
+      "markdownDescription": "Leading, trailing, or alone, with optional strict/attached/align-following modifiers.\nnone disables keyword line positioning."
+    },
+    "SqlLongLineSettings": {
+      "description": "Exceptions to LT05's line-width enforcement. Width inherits `printWidth`.",
+      "type": "object",
+      "properties": {
+        "ignoreCommentClauses": {
+          "type": "boolean"
+        },
+        "ignoreCommentLines": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Exceptions to LT05's line-width enforcement. Width inherits `printWidth`."
+    },
+    "SqlNewlineSettings": {
+      "description": "Blank-line limits for LT15.",
+      "type": "object",
+      "properties": {
+        "maximumEmptyLinesBetweenBatches": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "maximumEmptyLinesBetweenStatements": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "maximumEmptyLinesInsideStatements": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "minimumEmptyLinesBetweenStatements": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "markdownDescription": "Blank-line limits for LT15."
+    },
+    "SqlSingleTargetPolicy": {
+      "description": "Placement of a SELECT clause containing one target.",
+      "type": "string",
+      "enum": [
+        "same_line",
+        "new_line"
+      ],
+      "markdownDescription": "Placement of a SELECT clause containing one target."
+    },
+    "SqlSpacing": {
+      "description": "Sqruff spacing: single, touch, any, single:inline, touch:inline, or align.\nCompact align:type:within:scope:coordinate syntax is supported too.",
+      "type": "string",
+      "markdownDescription": "Sqruff spacing: single, touch, any, single:inline, touch:inline, or align.\nCompact align:type:within:scope:coordinate syntax is supported too."
+    },
+    "SqlTrailingComments": {
+      "type": "string",
+      "enum": [
+        "before",
+        "after"
+      ]
+    },
+    "SqlUserConfig": {
+      "description": "Opt-in SQL plugin configuration.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/SqlConfig"
+        }
+      ],
+      "markdownDescription": "Opt-in SQL plugin configuration."
+    },
+    "SqlWildcardPolicy": {
+      "description": "Whether a wildcard counts as one SELECT target or multiple targets for LT09.",
+      "type": "string",
+      "enum": [
+        "single",
+        "multiple"
+      ],
+      "markdownDescription": "Whether a wildcard counts as one SELECT target or multiple targets for LT09."
     },
     "SvelteConfig": {
       "type": "object",

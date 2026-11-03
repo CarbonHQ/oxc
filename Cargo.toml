@@ -168,6 +168,7 @@ oxc_formatter_htmlish = { path = "crates/oxc_formatter_htmlish" } # HTML (and HT
 oxc_formatter_json = { path = "crates/oxc_formatter_json" } # JSON formatter
 oxc_formatter_markdown = { path = "crates/oxc_formatter_markdown" } # Markdown formatter
 oxc_formatter_tests = { path = "crates/oxc_formatter_tests" } # Formatter test infrastructure (fixture codegen + harness)
+oxc_formatter_sql = { path = "crates/oxc_formatter_sql" }
 oxc_formatter_toml = { path = "crates/oxc_formatter_toml" } # TOML formatter
 oxc_formatter_yaml = { path = "crates/oxc_formatter_yaml" } # YAML formatter
 oxc_language_server = { path = "crates/oxc_language_server", default-features = false } # Language server
@@ -299,6 +300,11 @@ ignored = [
 # Force the registry request to resolve to the workspace copy so there's a single instance.
 [patch.crates-io]
 oxc_allocator = { path = "crates/oxc_allocator" }
+# Sqruff compatibility/performance fixes:
+# https://github.com/CarbonHQ/sqruff/blob/oxfmt/README.md#about-this-fork
+sqruff-lib = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "722f170b05181157bdb70f80bf36389f94f707f6" }
+sqruff-lib-core = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "722f170b05181157bdb70f80bf36389f94f707f6" }
+sqruff-lib-dialects = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "722f170b05181157bdb70f80bf36389f94f707f6" }
 
 [profile.dev]
 # Disabling debug info speeds up local and CI builds,

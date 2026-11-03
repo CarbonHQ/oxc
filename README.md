@@ -26,6 +26,13 @@
 
 </div>
 
+## CarbonHQ fork
+
+This fork adds native SQL formatting to Oxfmt, including standalone SQL files and
+SQL embedded in JavaScript/TypeScript templates and Markdown fences. See
+[our Oxfmt additions](./npm/oxfmt/README.md#oxfmt) for installation, supported SQL
+syntax, and configuration.
+
 ## ⚓ Oxc
 
 _/oʊ ɛks siː/_

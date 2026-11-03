@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -305,6 +305,18 @@ pub struct FormatConfig {
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub jsdoc: Option<JsdocUserConfig>,
 
+    /// Enable the Sqruff SQL formatting plugin for `sql` tagged templates,
+    /// `/* SQL */` templates, and SQL Markdown fences.
+    /// Only layout rules run; invalid SQL is preserved. Options inherit the host's
+    /// `tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: "off"`
+    /// disables the plugin in embedded content.
+    /// Standalone `.sql` files format by default using PostgreSQL; set `sql` to
+    /// `false` to disable SQL formatting, or an object to choose their dialect.
+    ///
+    /// - Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sql: Option<SqlUserConfig>,
+
     /// Options for `prettier-plugin-svelte`.
     ///
     /// Pass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).
@@ -405,6 +417,403 @@ impl FormatConfig {
         let overlay = serde_json::to_value(other).unwrap();
         let merged = json_deep_merge(base, overlay);
         *self = serde_json::from_value(merged).unwrap();
+    }
+}
+
+/// Opt-in SQL plugin configuration.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(untagged)]
+pub enum SqlUserConfig {
+    Bool(bool),
+    Object(Box<SqlConfig>),
+}
+
+/// SQL plugin options.
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", default, deny_unknown_fields)]
+pub struct SqlConfig {
+    /// Maximum SQL line length, including surrounding indentation and interpolations.
+    /// Applies to standalone SQL and embedded SQL independently of the host language.
+    /// Defaults to printWidth.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_sql_print_width"
+    )]
+    pub print_width: Option<u16>,
+    /// SQL dialect. Defaults to PostgreSQL.
+    pub dialect: SqlDialect,
+    /// Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing
+    /// indentation and LT05 preserves existing line wrapping. Parsing and token
+    /// preservation checks remain enabled.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude_rules: Vec<SqlLayoutRule>,
+    /// Placement of a single SELECT target. Defaults to Sqruff's `same_line`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single_target_policy: Option<SqlSingleTargetPolicy>,
+    /// Sqruff indentation structure; width and characters inherit tabWidth/useTabs.
+    #[serde(deserialize_with = "deserialize_sql_indentation")]
+    pub indentation: oxc_formatter_sql::SqlIndentationSettings,
+    /// LT05 exceptions. Maximum line length uses sql.printWidth, falling back to printWidth.
+    pub long_lines: oxc_formatter_sql::SqlLongLineSettings,
+    /// LT09 wildcard counting. Defaults to single.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wildcard_policy: Option<oxc_formatter_sql::SqlWildcardPolicy>,
+    /// LT15 blank-line limits.
+    #[serde(deserialize_with = "deserialize_sql_newlines")]
+    pub newlines: oxc_formatter_sql::SqlNewlineSettings,
+    /// Opt-in CP01–CP05 case normalization. Quoted SQL content stays unchanged.
+    #[serde(deserialize_with = "deserialize_sql_capitalization")]
+    pub capitalization: oxc_formatter_sql::SqlCapitalizationSettings,
+    /// Per-syntax-type Sqruff layout settings, using its snake_case type names
+    /// (for example, function_contents or where_clause). Only spacing and line
+    /// positioning settings are accepted.
+    #[serde(
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "deserialize_sql_layout"
+    )]
+    pub layout: BTreeMap<String, SqlLayoutTypeConfig>,
+}
+
+fn deserialize_sql_print_width<'de, D>(deserializer: D) -> Result<Option<u16>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let width = Option::<u16>::deserialize(deserializer)?;
+    if let Some(width) = width {
+        oxc_formatter_core::LineWidth::try_from(width).map_err(serde::de::Error::custom)?;
+    }
+    Ok(width)
+}
+
+fn deserialize_sql_newlines<'de, D>(
+    deserializer: D,
+) -> Result<oxc_formatter_sql::SqlNewlineSettings, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let settings = oxc_formatter_sql::SqlNewlineSettings::deserialize(deserializer)?;
+    oxc_formatter_sql::validate_newlines(&settings).map_err(serde::de::Error::custom)?;
+    Ok(settings)
+}
+
+fn deserialize_sql_indentation<'de, D>(
+    deserializer: D,
+) -> Result<oxc_formatter_sql::SqlIndentationSettings, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let settings = oxc_formatter_sql::SqlIndentationSettings::deserialize(deserializer)?;
+    for names in
+        [&settings.skip_indentation_in, &settings.skip_implicit_indents_in].into_iter().flatten()
+    {
+        oxc_formatter_sql::validate_syntax_names(names).map_err(serde::de::Error::custom)?;
+    }
+    Ok(settings)
+}
+
+fn deserialize_sql_capitalization<'de, D>(
+    deserializer: D,
+) -> Result<oxc_formatter_sql::SqlCapitalizationSettings, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let settings = oxc_formatter_sql::SqlCapitalizationSettings::deserialize(deserializer)?;
+    oxc_formatter_sql::validate_capitalization(&settings).map_err(serde::de::Error::custom)?;
+    Ok(settings)
+}
+
+/// Placement of a SELECT clause containing one target.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SqlSingleTargetPolicy {
+    SameLine,
+    NewLine,
+}
+
+impl SqlSingleTargetPolicy {
+    fn name(self) -> &'static str {
+        match self {
+            Self::SameLine => "same_line",
+            Self::NewLine => "new_line",
+        }
+    }
+}
+
+fn deserialize_sql_layout<'de, D>(
+    deserializer: D,
+) -> Result<BTreeMap<String, SqlLayoutTypeConfig>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let layout = BTreeMap::<String, SqlLayoutTypeConfig>::deserialize(deserializer)?;
+    for kind in layout.keys() {
+        if !oxc_formatter_sql::is_layout_type(kind) {
+            return Err(serde::de::Error::custom(format!(
+                "Unknown SQL layout syntax type: {kind}"
+            )));
+        }
+    }
+    for setting in layout.values() {
+        if setting.line_position.as_ref().is_some_and(|v| v.0 == "none") {
+            return Err(serde::de::Error::custom("none applies only to keywordLinePosition"));
+        }
+        if let Some(names) = &setting.keyword_line_position_exclusions {
+            oxc_formatter_sql::validate_syntax_names(names).map_err(serde::de::Error::custom)?;
+        }
+        for name in [&setting.align_within, &setting.align_scope].into_iter().flatten() {
+            if !oxc_formatter_sql::is_layout_type(name) {
+                return Err(serde::de::Error::custom(format!(
+                    "Unknown SQL alignment syntax type: {name}"
+                )));
+            }
+        }
+    }
+    Ok(layout)
+}
+
+/// Sqruff formatting rule codes accepted by the SQL formatter.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum SqlLayoutRule {
+    Lt01,
+    Lt02,
+    Lt03,
+    Lt04,
+    Lt05,
+    Lt06,
+    Lt07,
+    Lt08,
+    Lt09,
+    Lt10,
+    Lt11,
+    Lt12,
+    Lt13,
+    Lt14,
+    Lt15,
+    Cp01,
+    Cp02,
+    Cp03,
+    Cp04,
+    Cp05,
+}
+
+impl SqlLayoutRule {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Lt01 => "LT01",
+            Self::Lt02 => "LT02",
+            Self::Lt03 => "LT03",
+            Self::Lt04 => "LT04",
+            Self::Lt05 => "LT05",
+            Self::Lt06 => "LT06",
+            Self::Lt07 => "LT07",
+            Self::Lt08 => "LT08",
+            Self::Lt09 => "LT09",
+            Self::Lt10 => "LT10",
+            Self::Lt11 => "LT11",
+            Self::Lt12 => "LT12",
+            Self::Lt13 => "LT13",
+            Self::Lt14 => "LT14",
+            Self::Lt15 => "LT15",
+            Self::Cp01 => "CP01",
+            Self::Cp02 => "CP02",
+            Self::Cp03 => "CP03",
+            Self::Cp04 => "CP04",
+            Self::Cp05 => "CP05",
+        }
+    }
+}
+
+/// Layout settings for one Sqruff syntax type.
+#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", default, deny_unknown_fields)]
+pub struct SqlLayoutTypeConfig {
+    /// Spacing before the node. `any` preserves existing spacing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spacing_before: Option<SqlSpacing>,
+    /// Spacing after the node. `any` preserves existing spacing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spacing_after: Option<SqlSpacing>,
+    /// Spacing within the node.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spacing_within: Option<SqlSpacing>,
+    /// Placement of the whole node relative to adjacent lines.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_position: Option<SqlLinePosition>,
+    /// Placement of the node's leading keyword relative to its content.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keyword_line_position: Option<SqlLinePosition>,
+    /// Ancestor syntax types exempt from keyword positioning. An empty list clears defaults.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keyword_line_position_exclusions: Option<Vec<String>>,
+    /// Syntax type within which aligned whitespace is measured.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub align_within: Option<String>,
+    /// Syntax type bounding whitespace alignment.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub align_scope: Option<String>,
+    /// Alignment coordinate space: source or templated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alignment_coordinate_space: Option<SqlAlignmentCoordinateSpace>,
+}
+
+impl SqlLayoutTypeConfig {
+    fn to_backend(&self) -> oxc_formatter_sql::SqlLayoutTypeSettings {
+        oxc_formatter_sql::SqlLayoutTypeSettings {
+            spacing_before: self.spacing_before.as_ref().map(|v| v.0.clone()),
+            spacing_after: self.spacing_after.as_ref().map(|v| v.0.clone()),
+            spacing_within: self.spacing_within.as_ref().map(|v| v.0.clone()),
+            line_position: self.line_position.as_ref().map(|v| v.0.clone()),
+            keyword_line_position: self.keyword_line_position.as_ref().map(|v| v.0.clone()),
+            keyword_line_position_exclusions: self.keyword_line_position_exclusions.clone(),
+            align_within: self.align_within.clone(),
+            align_scope: self.align_scope.clone(),
+            alignment_coordinate_space: self.alignment_coordinate_space.map(|space| match space {
+                SqlAlignmentCoordinateSpace::Source => "source".to_owned(),
+                SqlAlignmentCoordinateSpace::Templated => "templated".to_owned(),
+            }),
+        }
+    }
+}
+
+/// Sqruff spacing: single, touch, any, single:inline, touch:inline, or align.
+/// Compact align:type:within:scope:coordinate syntax is supported too.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(try_from = "String", into = "String")]
+pub struct SqlSpacing(String);
+
+impl TryFrom<String> for SqlSpacing {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if oxc_formatter_sql::is_spacing(&value) {
+            Ok(Self(value))
+        } else {
+            Err(format!("Unsupported SQL spacing: {value}"))
+        }
+    }
+}
+impl From<SqlSpacing> for String {
+    fn from(value: SqlSpacing) -> Self {
+        value.0
+    }
+}
+
+/// Leading, trailing, or alone, with optional strict/attached/align-following modifiers.
+/// none disables keyword line positioning.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(try_from = "String", into = "String")]
+pub struct SqlLinePosition(String);
+
+impl TryFrom<String> for SqlLinePosition {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        if value == "none" || oxc_formatter_sql::is_line_position(&value) {
+            Ok(Self(value))
+        } else {
+            Err(format!("Unsupported SQL line position: {value}"))
+        }
+    }
+}
+impl From<SqlLinePosition> for String {
+    fn from(value: SqlLinePosition) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SqlAlignmentCoordinateSpace {
+    Source,
+    Templated,
+}
+
+/// SQL dialects accepted by the plugin.
+#[derive(Debug, Default, Clone, Copy, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum SqlDialect {
+    #[default]
+    Postgres,
+    Ansi,
+    Mysql,
+    Sqlite,
+    Bigquery,
+    Snowflake,
+    Duckdb,
+    Tsql,
+}
+
+impl SqlDialect {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Postgres => "postgres",
+            Self::Ansi => "ansi",
+            Self::Mysql => "mysql",
+            Self::Sqlite => "sqlite",
+            Self::Bigquery => "bigquery",
+            Self::Snowflake => "snowflake",
+            Self::Duckdb => "duckdb",
+            Self::Tsql => "tsql",
+        }
+    }
+}
+
+impl FormatConfig {
+    /// Standalone SQL is enabled by default, independently of the embedded SQL gate.
+    pub fn sql_file_options(
+        &self,
+        core: oxc_formatter_core::CoreFormatOptions,
+    ) -> Option<oxc_formatter_sql::SqlFormatOptions> {
+        if self.sql.is_none() {
+            Some(oxc_formatter_sql::SqlFormatOptions {
+                core,
+                dialect: SqlDialect::default().name(),
+                settings: oxc_formatter_sql::SqlLayoutSettings::default(),
+            })
+        } else {
+            self.sql_options(core)
+        }
+    }
+
+    pub fn sql_options(
+        &self,
+        mut core: oxc_formatter_core::CoreFormatOptions,
+    ) -> Option<oxc_formatter_sql::SqlFormatOptions> {
+        if let Some(SqlUserConfig::Object(options)) = &self.sql
+            && let Some(width) = options.print_width
+        {
+            // Validated while deserializing SqlConfig.
+            core.line_width = oxc_formatter_core::LineWidth::try_from(width).ok()?;
+        }
+        let (dialect, settings) = match &self.sql {
+            Some(SqlUserConfig::Bool(true)) => {
+                (SqlDialect::default(), oxc_formatter_sql::SqlLayoutSettings::default())
+            }
+            Some(SqlUserConfig::Object(options)) => (
+                options.dialect,
+                oxc_formatter_sql::SqlLayoutSettings {
+                    indentation: options.indentation.clone(),
+                    long_lines: options.long_lines.clone(),
+                    wildcard_policy: options.wildcard_policy,
+                    newlines: options.newlines.clone(),
+                    capitalization: options.capitalization.clone(),
+                    single_target_policy: options
+                        .single_target_policy
+                        .map(SqlSingleTargetPolicy::name),
+                    exclude_rules: options
+                        .exclude_rules
+                        .iter()
+                        .map(|rule| rule.name().to_owned())
+                        .collect(),
+                    types: options
+                        .layout
+                        .iter()
+                        .map(|(kind, setting)| (kind.clone(), setting.to_backend()))
+                        .collect(),
+                },
+            ),
+            _ => return None,
+        };
+        Some(oxc_formatter_sql::SqlFormatOptions { core, dialect: dialect.name(), settings })
     }
 }
 
@@ -1125,5 +1534,51 @@ mod tests_reject_experimental {
         }"#;
         let err = serde_json::from_str::<Oxfmtrc>(json).unwrap_err();
         assert!(err.to_string().contains("experimentalTernaries"));
+    }
+}
+
+#[cfg(test)]
+mod tests_sql_overrides {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn sql_print_width_is_independent_and_validated() {
+        let config: FormatConfig =
+            serde_json::from_value(json!({"printWidth": 80, "sql": {"printWidth": 120}})).unwrap();
+        let core = crate::core::options::validate(&config).unwrap().core;
+        assert_eq!(u16::from(core.line_width), 80);
+        assert_eq!(u16::from(config.sql_options(core).unwrap().core.line_width), 120);
+        for width in [0, 321] {
+            assert!(
+                serde_json::from_value::<FormatConfig>(json!({"sql": {"printWidth": width}}))
+                    .is_err()
+            );
+        }
+    }
+
+    #[test]
+    fn partial_sql_overrides_preserve_and_can_clear_formatting_settings() {
+        let mut base: FormatConfig = serde_json::from_value(json!({"sql": {
+            "wildcardPolicy": "multiple",
+            "indentation": {"indentedJoins": true},
+            "layout": {"alias_expression": {"spacingBefore": "align", "alignWithin": "select_clause"}},
+            "capitalization": {"keywords": {"policy": "upper", "ignoreWords": ["select"]}}
+        }})).unwrap();
+        let overlay: FormatConfig = serde_json::from_value(json!({"sql": {
+            "indentation": {"implicitIndents": "allow"},
+            "layout": {"alias_expression": {"alignScope": "bracketed"}},
+            "capitalization": {"keywords": {"ignoreWords": []}}
+        }}))
+        .unwrap();
+        base.merge(&overlay);
+        let options = serde_json::to_value(base).unwrap();
+        assert_eq!(options["sql"]["wildcardPolicy"], "multiple");
+        assert_eq!(options["sql"]["indentation"]["indentedJoins"], true);
+        assert_eq!(options["sql"]["indentation"]["implicitIndents"], "allow");
+        assert_eq!(options["sql"]["layout"]["alias_expression"]["alignWithin"], "select_clause");
+        assert_eq!(options["sql"]["layout"]["alias_expression"]["alignScope"], "bracketed");
+        assert_eq!(options["sql"]["capitalization"]["keywords"]["policy"], "upper");
+        assert_eq!(options["sql"]["capitalization"]["keywords"]["ignoreWords"], json!([]));
     }
 }

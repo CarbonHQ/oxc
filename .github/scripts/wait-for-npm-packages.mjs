@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /* eslint-disable no-await-in-loop, no-console */
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -8,7 +9,9 @@ const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mil
 
 async function waitForPackage(packageDir) {
   const { name, version } = JSON.parse(
-    fs.readFileSync(path.join(packageDir, "package.json"), "utf8"),
+    packageDir.endsWith(".tgz")
+      ? execFileSync("tar", ["-xOf", packageDir, "package/package.json"], { encoding: "utf8" })
+      : fs.readFileSync(path.join(packageDir, "package.json"), "utf8"),
   );
   const spec = `${name}@${version}`;
   const metadataUrl = `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;

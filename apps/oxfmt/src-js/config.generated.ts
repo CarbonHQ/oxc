@@ -21,6 +21,7 @@ export type Language =
   | "scss"
   | "less"
   | "graphql"
+  | "sql"
   | "yaml"
   | "markdown"
   | "toml"
@@ -68,6 +69,65 @@ export type SortGroupItemConfig = NewlinesBetweenMarker | string | string[];
 export type SortOrderConfig = "asc" | "desc";
 export type SortPackageJsonUserConfig = boolean | SortPackageJsonConfig;
 export type SortTailwindcssUserConfig = boolean | SortTailwindcssConfig;
+/**
+ * Opt-in SQL plugin configuration.
+ */
+export type SqlUserConfig = boolean | SqlConfig;
+/**
+ * Case styles supported by Sqruff. Keywords and literals use the first four.
+ * Styles that would rename a token rather than just change its case are rejected.
+ */
+export type SqlCasePolicy = "consistent" | "upper" | "lower" | "capitalise" | "pascal" | "camel" | "snake";
+export type SqlIdentifierPolicy = "all" | "none" | "aliases" | "column_aliases" | "table_aliases";
+/**
+ * SQL dialects accepted by the plugin.
+ */
+export type SqlDialect = "postgres" | "ansi" | "mysql" | "sqlite" | "bigquery" | "snowflake" | "duckdb" | "tsql";
+/**
+ * Sqruff formatting rule codes accepted by the SQL formatter.
+ */
+export type SqlLayoutRule =
+  | "LT01"
+  | "LT02"
+  | "LT03"
+  | "LT04"
+  | "LT05"
+  | "LT06"
+  | "LT07"
+  | "LT08"
+  | "LT09"
+  | "LT10"
+  | "LT11"
+  | "LT12"
+  | "LT13"
+  | "LT14"
+  | "LT15"
+  | "CP01"
+  | "CP02"
+  | "CP03"
+  | "CP04"
+  | "CP05";
+export type SqlImplicitIndents = "forbid" | "allow" | "require";
+export type SqlTrailingComments = "before" | "after";
+export type SqlAlignmentCoordinateSpace = "source" | "templated";
+/**
+ * Leading, trailing, or alone, with optional strict/attached/align-following modifiers.
+ * none disables keyword line positioning.
+ */
+export type SqlLinePosition = string;
+/**
+ * Sqruff spacing: single, touch, any, single:inline, touch:inline, or align.
+ * Compact align:type:within:scope:coordinate syntax is supported too.
+ */
+export type SqlSpacing = string;
+/**
+ * Placement of a SELECT clause containing one target.
+ */
+export type SqlSingleTargetPolicy = "same_line" | "new_line";
+/**
+ * Whether a wildcard counts as one SELECT target or multiple targets for LT09.
+ */
+export type SqlWildcardPolicy = "single" | "multiple";
 export type SvelteUserConfig = boolean | SvelteConfig;
 export type TrailingCommaConfig = "all" | "es5" | "none";
 
@@ -303,6 +363,18 @@ export interface Oxfmtrc {
    * - Default: Disabled
    */
   sortTailwindcss?: SortTailwindcssUserConfig;
+  /**
+   * Enable the Sqruff SQL formatting plugin for `sql` tagged templates,
+   * `/* SQL * /` templates, and SQL Markdown fences.
+   * Only layout rules run; invalid SQL is preserved. Options inherit the host's
+   * `tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: "off"`
+   * disables the plugin in embedded content.
+   * Standalone `.sql` files format by default using PostgreSQL; set `sql` to
+   * `false` to disable SQL formatting, or an object to choose their dialect.
+   *
+   * - Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files
+   */
+  sql?: SqlUserConfig;
   /**
    * Options for `prettier-plugin-svelte`.
    *
@@ -688,6 +760,18 @@ export interface FormatConfig {
    */
   sortTailwindcss?: SortTailwindcssUserConfig;
   /**
+   * Enable the Sqruff SQL formatting plugin for `sql` tagged templates,
+   * `/* SQL * /` templates, and SQL Markdown fences.
+   * Only layout rules run; invalid SQL is preserved. Options inherit the host's
+   * `tabWidth`, `useTabs` and `printWidth`. `embeddedLanguageFormatting: "off"`
+   * disables the plugin in embedded content.
+   * Standalone `.sql` files format by default using PostgreSQL; set `sql` to
+   * `false` to disable SQL formatting, or an object to choose their dialect.
+   *
+   * - Default: `false` for embedded SQL; PostgreSQL formatting for `.sql` files
+   */
+  sql?: SqlUserConfig;
+  /**
    * Options for `prettier-plugin-svelte`.
    *
    * Pass `true` or an object to enable `.svelte` file formatting, `false` to disable (handy in overrides).
@@ -946,6 +1030,156 @@ export interface SortTailwindcssConfig {
    */
   stylesheet?: string;
   [k: string]: unknown;
+}
+/**
+ * SQL plugin options.
+ */
+export interface SqlConfig {
+  /**
+   * Opt-in CP01–CP05 case normalization. Quoted SQL content stays unchanged.
+   */
+  capitalization?: SqlCapitalizationSettings;
+  /**
+   * SQL dialect. Defaults to PostgreSQL.
+   */
+  dialect?: SqlDialect & string;
+  /**
+   * Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing
+   * indentation and LT05 preserves existing line wrapping. Parsing and token
+   * preservation checks remain enabled.
+   */
+  excludeRules?: SqlLayoutRule[];
+  /**
+   * Sqruff indentation structure; width and characters inherit tabWidth/useTabs.
+   */
+  indentation?: SqlIndentationSettings;
+  /**
+   * Per-syntax-type Sqruff layout settings, using its snake_case type names
+   * (for example, function_contents or where_clause). Only spacing and line
+   * positioning settings are accepted.
+   */
+  layout?: {
+    [k: string]: SqlLayoutTypeConfig;
+  };
+  /**
+   * LT05 exceptions. Maximum line length uses sql.printWidth, falling back to printWidth.
+   */
+  longLines?: SqlLongLineSettings;
+  /**
+   * LT15 blank-line limits.
+   */
+  newlines?: SqlNewlineSettings;
+  /**
+   * Maximum SQL line length, including surrounding indentation and interpolations.
+   * Applies to standalone SQL and embedded SQL independently of the host language.
+   * Defaults to printWidth.
+   */
+  printWidth?: number;
+  /**
+   * Placement of a single SELECT target. Defaults to Sqruff's `same_line`.
+   */
+  singleTargetPolicy?: SqlSingleTargetPolicy;
+  /**
+   * LT09 wildcard counting. Defaults to single.
+   */
+  wildcardPolicy?: SqlWildcardPolicy;
+}
+/**
+ * Optional case normalization. Only configured targets enable their CP rule.
+ * Quoted identifiers, string literals, and comments are always preserved.
+ */
+export interface SqlCapitalizationSettings {
+  functions?: SqlCaseSettings;
+  identifiers?: SqlCaseSettings;
+  keywords?: SqlCaseSettings;
+  literals?: SqlCaseSettings;
+  types?: SqlCaseSettings;
+}
+/**
+ * Capitalization policy and exceptions for one target. Regexes are Rust regexes.
+ * `unquotedIdentifiersPolicy` applies only to the identifiers target.
+ */
+export interface SqlCaseSettings {
+  ignoreWords?: string[];
+  ignoreWordsRegex?: string[];
+  policy?: SqlCasePolicy;
+  unquotedIdentifiersPolicy?: SqlIdentifierPolicy;
+}
+/**
+ * Sqruff indentation choices. Width and indent characters inherit `tabWidth` and `useTabs`.
+ */
+export interface SqlIndentationSettings {
+  hangingIndents?: boolean;
+  ignoreCommentLines?: boolean;
+  implicitIndents?: SqlImplicitIndents;
+  indentedCtes?: boolean;
+  indentedJoins?: boolean;
+  indentedJoinsOn?: boolean;
+  indentedOnContents?: boolean;
+  indentedThen?: boolean;
+  indentedThenContents?: boolean;
+  indentedUsingOn?: boolean;
+  skipImplicitIndentsIn?: string[];
+  skipIndentationIn?: string[];
+  templateBlocksIndent?: boolean;
+  trailingComments?: SqlTrailingComments;
+}
+/**
+ * Layout settings for one Sqruff syntax type.
+ */
+export interface SqlLayoutTypeConfig {
+  /**
+   * Syntax type bounding whitespace alignment.
+   */
+  alignScope?: string;
+  /**
+   * Syntax type within which aligned whitespace is measured.
+   */
+  alignWithin?: string;
+  /**
+   * Alignment coordinate space: source or templated.
+   */
+  alignmentCoordinateSpace?: SqlAlignmentCoordinateSpace;
+  /**
+   * Placement of the node's leading keyword relative to its content.
+   */
+  keywordLinePosition?: SqlLinePosition;
+  /**
+   * Ancestor syntax types exempt from keyword positioning. An empty list clears defaults.
+   */
+  keywordLinePositionExclusions?: string[];
+  /**
+   * Placement of the whole node relative to adjacent lines.
+   */
+  linePosition?: SqlLinePosition;
+  /**
+   * Spacing after the node. `any` preserves existing spacing.
+   */
+  spacingAfter?: SqlSpacing;
+  /**
+   * Spacing before the node. `any` preserves existing spacing.
+   */
+  spacingBefore?: SqlSpacing;
+  /**
+   * Spacing within the node.
+   */
+  spacingWithin?: SqlSpacing;
+}
+/**
+ * Exceptions to LT05's line-width enforcement. Width inherits `printWidth`.
+ */
+export interface SqlLongLineSettings {
+  ignoreCommentClauses?: boolean;
+  ignoreCommentLines?: boolean;
+}
+/**
+ * Blank-line limits for LT15.
+ */
+export interface SqlNewlineSettings {
+  maximumEmptyLinesBetweenBatches?: number;
+  maximumEmptyLinesBetweenStatements?: number;
+  maximumEmptyLinesInsideStatements?: number;
+  minimumEmptyLinesBetweenStatements?: number;
 }
 export interface SvelteConfig {
   /**

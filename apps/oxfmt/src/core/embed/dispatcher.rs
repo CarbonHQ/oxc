@@ -10,6 +10,7 @@ use tracing::{debug, debug_span};
 
 use oxc_formatter::{
     CssInJsTemplate, HtmlInJsTemplate, JsEmbeddedIn, JsFormatOptions, MarkdownInJsTemplate,
+    SqlInJsTemplate,
 };
 use oxc_formatter_core::{
     DispatchRequest, DispatchResponse, EmbeddedIr, FormatDispatcher, FormatSession,
@@ -64,6 +65,7 @@ pub struct ResolvedDispatchConfig {
     markdown: OnceLock<MarkdownFormatOptions>,
     toml: OnceLock<TomlFormatOptions>,
     htmlish: OnceLock<HtmlishFormatOptions>,
+    sql: OnceLock<Result<oxc_formatter_sql::SqlFormatter, String>>,
     /// The options handed to Prettier; see [`PrettierOptions`].
     #[cfg(feature = "napi")]
     prettier: PrettierOptions,
@@ -99,6 +101,7 @@ impl ResolvedDispatchConfig {
             markdown: OnceLock::new(),
             toml: OnceLock::new(),
             htmlish: OnceLock::new(),
+            sql: OnceLock::new(),
             #[cfg(feature = "napi")]
             prettier: PrettierOptions::default(),
         }
@@ -268,8 +271,35 @@ pub fn build_dispatcher(
     Arc::new(move |session: &FormatSession<'_>, request: DispatchRequest<'_>| {
         let text = request.text;
         match route_embedded(request.language) {
+            Route::Native(NativeLanguage::Sql) => {
+                let Some(options) =
+                    dispatch_config.config.sql_options(dispatch_config.validated.core)
+                else {
+                    return Ok(DispatchResponse::PreserveOriginal);
+                };
+                let formatter = dispatch_config.sql.get_or_init(|| {
+                    oxc_formatter_sql::SqlFormatter::new(options).map_err(|error| error.to_string())
+                });
+                Ok(format_native("sql", || match formatter {
+                    Ok(formatter) => {
+                        let context = request.parent_context_as::<SqlInJsTemplate>().map_or_else(
+                            oxc_formatter_sql::SqlRenderContext::default,
+                            |context| oxc_formatter_sql::SqlRenderContext {
+                                base_indent: context.base_indent,
+                                tab_width: context.tab_width,
+                                replacements: context.replacements.iter().cloned().collect(),
+                            },
+                        );
+                        formatter
+                            .format_to_ir_with_context(session, text, context)
+                            .map_err(|error| error.to_string())
+                    }
+                    Err(error) => Err(error.clone()),
+                }))
+            }
             Route::Native(language) => {
                 Ok(format_native(language.trace_label(), || match language {
+                    NativeLanguage::Sql => unreachable!("SQL is handled above"),
                     NativeLanguage::Js(source_type) => {
                         let embedded_in = request
                             .parent_context_as::<XxxInMarkdownCodeBlock>()
@@ -417,7 +447,10 @@ mod tests {
 
     fn dispatch_config() -> Arc<ResolvedDispatchConfig> {
         Arc::new(ResolvedDispatchConfig::new(
-            Arc::new(FormatConfig::default()),
+            Arc::new(FormatConfig {
+                sql: Some(crate::core::oxfmtrc::SqlUserConfig::Bool(true)),
+                ..FormatConfig::default()
+            }),
             Arc::new(ValidatedOptions { core: CoreFormatOptions::default(), sort_imports: None }),
         ))
     }
@@ -451,6 +484,7 @@ mod tests {
             "tsx",
             "graphql",
             "gql",
+            "sql",
             "css",
             "postcss",
             "scss",
@@ -467,6 +501,7 @@ mod tests {
         ] {
             let text = match language {
                 "graphql" | "gql" => "{ a }",
+                "sql" => "select a,b from users",
                 "css" | "postcss" | "scss" | "less" => "a { color: red }",
                 "yaml" | "yml" => "a: 1",
                 "json" | "jsonc" | "json5" => "{ \"a\": 1 }",

@@ -271,6 +271,13 @@ impl<'a> FormatElement<'a> {
             width: TextWidth::from_text(text, indent_width),
         }
     }
+    /// Text whose internal line endings are data, not document layout.
+    #[inline]
+    pub fn literal_text(text: &'a str, indent_width: IndentWidth) -> Self {
+        let mut width = TextWidth::from_text(text, indent_width);
+        width.flags |= TextWidth::PRESERVE_EOL_MASK;
+        Self::Text { text: ThinStr::new(text), width }
+    }
 }
 
 impl FormatElements for FormatElement<'_> {
@@ -469,6 +476,12 @@ impl TextWidth {
     /// Equivalent to Prettier's `literallineWithoutBreakParent`: the newlines still
     /// print literally, but `Document::propagate_expand` / `will_break` ignore them.
     const NO_EXPAND_MASK: u8 = 1 << 1;
+
+    const PRESERVE_EOL_MASK: u8 = 1 << 2;
+
+    pub(crate) const fn preserves_eol(self) -> bool {
+        self.flags & Self::PRESERVE_EOL_MASK != 0
+    }
 
     /// The maximum width value, larger widths saturate to it
     const MAX_WIDTH: u32 = u16::MAX as u32;

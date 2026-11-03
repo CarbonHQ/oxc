@@ -1,0 +1,4 @@
+{
+  "sql": { "dialect": "postgres" },
+  "overrides": [{ "files": ["off.ts", "off.sql"], "options": { "sql": false } }]
+}

@@ -1,0 +1,88 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Sqruff SQL plugin > formats SQL embedded in TypeScript, including expressions and comments 1`] = `
+"const query: Query = sql\`
+  select
+    id,
+    name
+  from users
+  where id = \${user.id} and active = \${true};
+\`;
+const prisma = Prisma.sql\`
+  select
+    a,
+    b
+  from users
+  where id = \${id}
+\`;
+const typed = sql.type(userSchema)\`
+  select
+    a,
+    b
+  from users
+\`;
+const plain = /* SQL */ \`
+  select
+    a,
+    b
+  from users
+  where id = \${id}
+\`;
+const comment = sql\`
+  select
+    a,
+    b
+  from users -- keep this comment
+  where id = \${id};
+\`;
+function queryUser() {
+  return sql\`
+    select
+      a,
+      b
+    from users
+    where id = \${user.id}
+  \`;
+}
+const view = (
+  <div>{sql\`
+    select
+      a,
+      b
+    from users
+  \`}</div>
+);
+"
+`;
+
+exports[`Sqruff SQL plugin > formats SQL fences using the same native plugin 1`] = `
+"\`\`\`sql
+select
+  a,
+  b
+from users;
+\`\`\`
+"
+`;
+
+exports[`Sqruff SQL plugin > supports SQL dialects and inherited indentation and line endings 1`] = `
+"function q() {
+    return sql\`
+        select
+            \\\`a\\\`,
+            \\\`b\\\`
+        from \\\`users\\\`
+    \`;
+}
+"
+`;
+
+exports[`Sqruff SQL plugin > supports SQL dialects and inherited indentation and line endings 2`] = `
+"const q = sql\`
+	select
+		a,
+		b
+	from users
+\`;
+"
+`;

@@ -38,6 +38,22 @@ file://<fixture>/format/test.json
 --------------------"
 `;
 
+exports[`LSP formatting > basic formatting > should handle format/test.sql 1`] = `
+"--- URI -----------
+file://<fixture>/format/test.sql
+--- BEFORE ---------
+select  id,name from users where id=$1;
+
+--- AFTER ----------
+select
+  id,
+  name
+from users
+where id = $1;
+
+--------------------"
+`;
+
 exports[`LSP formatting > basic formatting > should handle format/test.svelte 1`] = `
 "--- URI -----------
 file://<fixture>/format/test.svelte
@@ -250,6 +266,24 @@ file://<fixture>/config-sort-tailwindcss/test.vue
 <template>
   <div class="m-2 flex p-4">Hello</div>
 </template>
+
+--------------------"
+`;
+
+exports[`LSP formatting > config options > should apply config from config-sql/test.ts 1`] = `
+"--- URI -----------
+file://<fixture>/config-sql/test.ts
+--- BEFORE ---------
+const query: Query = sql\`select  id,name from users where id=\${user.id};\`;
+
+--- AFTER ----------
+const query: Query = sql\`
+  select
+    id,
+    name
+  from users
+  where id = \${user.id};
+\`;
 
 --------------------"
 `;

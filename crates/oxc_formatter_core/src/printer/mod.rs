@@ -49,6 +49,37 @@ impl Printed {
     }
 }
 
+/// Measure open indentation scopes with the printer's own stack semantics.
+/// Groups are assumed expanded; balanced interned content has no net effect.
+pub fn expanded_indent_width(elements: &[FormatElement<'_>], options: &PrinterOptions) -> usize {
+    let mut stack = PrintIndentStack::new(Indention::default());
+    let mut prefixes = Vec::new();
+    for element in elements {
+        let FormatElement::Tag(tag) = element else { continue };
+        match tag {
+            Tag::StartIndent | Tag::StartIndentIfGroupBreaks(_) => {
+                stack.indent(options.indent_style());
+            }
+            Tag::StartAlign(align) => stack.align(align.count()),
+            Tag::StartPrefix(prefix) => {
+                stack.prefix(*prefix, &mut prefixes, options.indent_style());
+            }
+            Tag::StartDedent(DedentMode::Level) => stack.start_dedent(),
+            Tag::EndDedent(DedentMode::Level) => stack.end_dedent(),
+            Tag::StartDedent(DedentMode::Root) => stack.reset_indent(),
+            Tag::StartMarkAsRoot => stack.mark_root(),
+            Tag::EndMarkAsRoot => stack.end_mark_root(),
+            Tag::EndIndent
+            | Tag::EndAlign
+            | Tag::EndPrefix
+            | Tag::EndIndentIfGroupBreaks(_)
+            | Tag::EndDedent(DedentMode::Root) => stack.pop(),
+            _ => {}
+        }
+    }
+    stack.indention().width(&prefixes, options.indent_width())
+}
+
 /// Prints the format elements into a string
 #[derive(Debug, Default)]
 pub struct Printer<'a> {
@@ -806,7 +837,7 @@ impl<'a> Printer<'a> {
         if self.state.line_width == 0 && self.state.pending_indent.prefix.is_some() {
             self.emit_prefix_chain(self.state.pending_indent, true);
         }
-        self.print_char('\n');
+        self.print_char('\n', self.options.line_ending);
         self.state.pending_indent = next;
     }
 
@@ -841,8 +872,13 @@ impl<'a> Printer<'a> {
                     self.state.buffer.print_str_short(first_line);
                     self.state.line_width += width.value() as usize;
                     // Print the remaining lines
+                    let eol = if width.preserves_eol() {
+                        crate::LineEnding::Lf
+                    } else {
+                        self.options.line_ending
+                    };
                     for char in remaining.chars() {
-                        self.print_char(char);
+                        self.print_char(char, eol);
                     }
                 } else {
                     self.state.buffer.print_str_short(text);
@@ -854,11 +890,11 @@ impl<'a> Printer<'a> {
         self.state.has_empty_line = false;
     }
 
-    fn print_char(&mut self, char: char) {
+    fn print_char(&mut self, char: char, eol: crate::LineEnding) {
         if char == '\n' {
             // SAFETY: `line_ending` is one of `\n`, `\r\n` or `\r`, all valid ASCII sequences
             unsafe {
-                self.state.buffer.print_bytes_unchecked(self.options.line_ending.as_bytes());
+                self.state.buffer.print_bytes_unchecked(eol.as_bytes());
             }
 
             self.state.line_width = 0;
@@ -1701,6 +1737,42 @@ mod tests {
 
         let elements = buffer.into_vec();
         Document::new(elements, Vec::default()).print(0, options).expect("Document to be valid")
+    }
+
+    #[test]
+    fn open_scope_width_matches_printed_indentation() {
+        use crate::{Align, DedentMode, FormatElement, Tag};
+        for style in [IndentStyle::Space, IndentStyle::Tab] {
+            let options = PrinterOptions::default()
+                .with_indent_width(4.try_into().unwrap())
+                .with_indent_style(style);
+            let mut elements = vec![
+                FormatElement::token("a"),
+                FormatElement::Tag(Tag::StartIndent),
+                FormatElement::Tag(Tag::StartAlign(Align::new(2.try_into().unwrap()))),
+                FormatElement::Tag(Tag::StartIndent),
+                FormatElement::Tag(Tag::StartMarkAsRoot),
+                FormatElement::Tag(Tag::StartDedent(DedentMode::Root)),
+                FormatElement::Tag(Tag::StartAlign(Align::new(3.try_into().unwrap()))),
+            ];
+            let columns = super::expanded_indent_width(&elements, &options);
+            elements.extend([
+                FormatElement::Line(crate::LineMode::Hard),
+                FormatElement::token("x"),
+                FormatElement::Tag(Tag::EndAlign),
+                FormatElement::Tag(Tag::EndDedent(DedentMode::Root)),
+                FormatElement::Tag(Tag::EndMarkAsRoot),
+                FormatElement::Tag(Tag::EndIndent),
+                FormatElement::Tag(Tag::EndAlign),
+                FormatElement::Tag(Tag::EndIndent),
+            ]);
+            let printed = Printer::new(options, &[]).print(&elements).unwrap();
+            let indent = printed.as_code().rsplit_once('\n').unwrap().1.strip_suffix('x').unwrap();
+            assert_eq!(
+                columns,
+                indent.chars().map(|c| if c == '\t' { 4 } else { 1 }).sum::<usize>()
+            );
+        }
     }
 
     #[test]

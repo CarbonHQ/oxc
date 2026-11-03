@@ -23,6 +23,14 @@ pub struct CssInJsTemplate;
 /// which would need escaping in the template.
 pub struct MarkdownInJsTemplate;
 
+/// Printed interpolation text and surrounding indentation for SQL line measurement.
+/// This is input-specific data, separate from the child's cached configuration.
+pub struct SqlInJsTemplate {
+    pub base_indent: usize,
+    pub tab_width: usize,
+    pub replacements: Vec<(String, String)>,
+}
+
 /// Prettier uses `PRETTIER_HTML_PLACEHOLDER_{index}_{counter}_IN_JS` as placeholders, the counter global.
 /// Ours is `PRETTIER_HTML_PLACEHOLDER_{depth}_{index}_IN_JS`, the session's dispatch depth:
 /// an html-in-js nested in this one (in its `<script>`) is deeper, so neither takes the other's placeholders,

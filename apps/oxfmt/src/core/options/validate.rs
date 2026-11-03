@@ -27,5 +27,11 @@ pub struct ValidatedOptions {
 /// # Errors
 /// Returns an error if any option value is invalid.
 pub fn validate(config: &FormatConfig) -> Result<ValidatedOptions, String> {
+    if let Some(super::super::oxfmtrc::SqlUserConfig::Object(sql)) = &config.sql
+        && let Some(width) = sql.print_width
+    {
+        oxc_formatter_core::LineWidth::try_from(width)
+            .map_err(|error| format!("Invalid sql.printWidth: {error}"))?;
+    }
     Ok(ValidatedOptions { core: to_core_options(config)?, sort_imports: to_sort_imports(config)? })
 }

@@ -88,6 +88,15 @@ pub struct Formatter<'buf, 'ast, C> {
 }
 
 impl<'buf, 'ast, C> Formatter<'buf, 'ast, C> {
+    /// Columns of indentation in the currently open scopes when their groups expand.
+    ///
+    /// This includes scopes opened by a parent formatter while staging an interned
+    /// document. It does not inspect source whitespace. Embedded formatters that
+    /// emit hard line breaks can use it to budget their surrounding indentation.
+    pub fn expanded_indent_width(&self, options: &crate::PrinterOptions) -> usize {
+        crate::printer::expanded_indent_width(self.state.elements(), options)
+    }
+
     /// Creates the root formatter of the format run of `state`, taken with [`Formatter::into_vec`].
     pub fn new(state: &'buf mut FormatState<'ast, C>) -> Self {
         debug_assert!(state.elements().is_empty(), "a root formatter on a state in use");
