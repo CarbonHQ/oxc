@@ -1,0 +1,40 @@
+{
+  "name": "oxfmt-sql",
+  "displayName": "Carbon Oxfmt SQL",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Activate the official Oxc extension for SQL formatting with the CarbonHQ fork.",
+  "categories": [
+    "Formatters"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CarbonHQ/oxc.git",
+    "directory": "editors/vscode-sql"
+  },
+  "publisher": "carbonhq",
+  "main": "./extension.cjs",
+  "scripts": {
+    "package": "npx --yes @vscode/vsce@3.6.2 package --no-dependencies"
+  },
+  "activationEvents": [
+    "onLanguage:sql"
+  ],
+  "extensionDependencies": [
+    "oxc.oxc-vscode"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "engines": {
+    "vscode": "^1.93.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Uses the official Oxc extension to run the workspace formatter."
+    },
+    "virtualWorkspaces": false
+  }
+}

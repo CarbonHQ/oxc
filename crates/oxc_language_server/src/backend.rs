@@ -279,7 +279,8 @@ impl LanguageServer for Backend {
 
         self.send_client_messages(client_messages).await;
 
-        let mut registrations = vec![];
+        let mut registrations =
+            self.worker_manager.read_tool_builder().dynamic_registrations(capabilities);
 
         // init all file watchers
         if capabilities.dynamic_watchers {
@@ -303,7 +304,7 @@ impl LanguageServer for Backend {
             return;
         }
         if let Err(err) = self.client.register_capability(registrations).await {
-            warn!("sending registerCapability.didChangeWatchedFiles failed: {err}");
+            warn!("sending registerCapability failed: {err}");
         }
     }
 

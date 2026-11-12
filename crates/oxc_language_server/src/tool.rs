@@ -1,7 +1,7 @@
 use tower_lsp_server::{
     gen_lsp_types::{
-        CodeActionResponse, Diagnostic, MessageType, Pattern, ServerCapabilities, TextEdit, Uri,
-        WorkspaceEdit,
+        CodeActionResponse, Diagnostic, MessageType, Pattern, Registration, ServerCapabilities,
+        TextEdit, Uri, WorkspaceEdit,
     },
     jsonrpc::ErrorCode,
 };
@@ -19,6 +19,12 @@ pub trait ToolBuilder: Send + Sync {
 
     /// Build a boxed instance of the tool for the given root URI and options.
     fn build(&self, root_uri: &Uri, options: serde_json::Value) -> ToolBuildResult;
+
+    /// Additional capabilities to register once after initialization.
+    /// Implementors must check the client's dynamic registration support.
+    fn dynamic_registrations(&self, _capabilities: &Capabilities) -> Vec<Registration> {
+        Vec::new()
+    }
 
     /// Shutdown hook for the tool. Implementors may perform any necessary cleanup here.
     fn shutdown(&self, _root_uri: &Uri) {

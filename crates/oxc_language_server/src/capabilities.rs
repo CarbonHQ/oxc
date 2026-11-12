@@ -17,6 +17,10 @@ pub struct Capabilities {
     pub workspace_apply_edit: bool,
     pub workspace_configuration: bool,
     pub dynamic_watchers: bool,
+    /// Whether document synchronization can be registered for additional selectors.
+    pub dynamic_synchronization: bool,
+    /// Whether document formatting can be registered for additional selectors.
+    pub dynamic_formatting: bool,
     /// The diagnostic mode the server should use, should be overridden by the tool implementation.
     /// Defaults to `None`.
     pub diagnostic_mode: DiagnosticMode,
@@ -46,6 +50,19 @@ impl From<ClientCapabilities> for Capabilities {
             .as_ref()
             .is_some_and(|text_document| text_document.diagnostic.is_some());
 
+        let dynamic_synchronization = value.text_document.as_ref().is_some_and(|document| {
+            document
+                .synchronization
+                .as_ref()
+                .is_some_and(|sync| sync.dynamic_registration == Some(true))
+        });
+        let dynamic_formatting = value.text_document.as_ref().is_some_and(|document| {
+            document
+                .formatting
+                .as_ref()
+                .is_some_and(|formatting| formatting.dynamic_registration == Some(true))
+        });
+
         let refresh_diagnostics = value.workspace.as_ref().is_some_and(|workspace| {
             workspace.diagnostics.as_ref().is_some_and(|diagnostics| {
                 diagnostics.refresh_support.is_some_and(|refresh| refresh)
@@ -56,6 +73,8 @@ impl From<ClientCapabilities> for Capabilities {
             workspace_apply_edit,
             workspace_configuration,
             dynamic_watchers,
+            dynamic_synchronization,
+            dynamic_formatting,
             pull_diagnostics,
             refresh_diagnostics,
             diagnostic_mode: DiagnosticMode::None,
@@ -121,5 +140,25 @@ mod test {
 
         let capabilities = Capabilities::from(client_capabilities);
         assert!(capabilities.dynamic_watchers);
+    }
+
+    #[test]
+    fn test_dynamic_document_capabilities() {
+        for supported in [None, Some(false), Some(true)] {
+            let capabilities = Capabilities::from(
+                serde_json::from_value::<ClientCapabilities>(serde_json::json!({
+                    "textDocument": {
+                        "synchronization": { "dynamicRegistration": supported },
+                        "formatting": { "dynamicRegistration": supported },
+                    }
+                }))
+                .unwrap(),
+            );
+            assert_eq!(capabilities.dynamic_synchronization, supported == Some(true));
+            assert_eq!(capabilities.dynamic_formatting, supported == Some(true));
+        }
+        let defaults = Capabilities::from(ClientCapabilities::default());
+        assert!(!defaults.dynamic_synchronization);
+        assert!(!defaults.dynamic_formatting);
     }
 }

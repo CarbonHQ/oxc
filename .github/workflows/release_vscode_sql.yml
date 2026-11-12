@@ -1,0 +1,58 @@
+name: Release SQL VS Code Extension
+
+permissions: {}
+
+on:
+  push:
+    tags: ["carbonhq-oxfmt-sql-vscode-v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'CarbonHQ/oxc'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: editors/vscode-sql
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Verify release version
+        id: version
+        run: |
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const { appendFileSync } = require('node:fs');
+          const { name, version } = require('./package.json');
+          assert.equal(process.env.GITHUB_REF_NAME, `carbonhq-oxfmt-sql-vscode-v${version}`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\nvsix=${name}-${version}.vsix\n`);
+          JS
+
+      - name: Package VSIX
+        run: npm run package
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          VSIX: ${{ steps.version.outputs.vsix }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$VSIX" --clobber
+          else
+            gh release create "$TAG" "$VSIX" \
+              --verify-tag \
+              --latest=false \
+              --title "Carbon Oxfmt SQL for VS Code v${VERSION}" \
+              --notes 'Install the attached VSIX using **Extensions: Install from VSIX** in VS Code. Requires the official Oxc extension and the CarbonHQ Oxfmt fork with SQL dynamic registration. See the packaged README for setup instructions.'
+          fi

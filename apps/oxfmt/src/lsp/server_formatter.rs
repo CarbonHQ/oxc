@@ -6,7 +6,8 @@ use std::{
 use cow_utils::CowUtils;
 use ignore::gitignore::Gitignore;
 use tower_lsp_server::gen_lsp_types::{
-    DocumentFormattingProvider, MessageType, Pattern, Range, ServerCapabilities, TextEdit, Uri,
+    DocumentFormattingProvider, MessageType, Pattern, Range, Registration, ServerCapabilities,
+    TextDocumentSyncKind, TextEdit, Uri,
 };
 use tracing::{debug, error, warn};
 
@@ -102,6 +103,34 @@ impl ToolBuilder for ServerFormatterBuilder {
     fn build(&self, root_uri: &Uri, options: serde_json::Value) -> ToolBuildResult {
         let (tool, client_messages) = self.build(root_uri, options);
         ToolBuildResult { tool: Box::new(tool), client_messages }
+    }
+
+    fn dynamic_registrations(&self, capabilities: &Capabilities) -> Vec<Registration> {
+        // The official VS Code extension's static selector does not include SQL.
+        // Extend its existing connection, including synchronization so formatting
+        // always sees unsaved edits and untitled buffers rather than disk content.
+        if !capabilities.dynamic_synchronization || !capabilities.dynamic_formatting {
+            return Vec::new();
+        }
+
+        let selector = serde_json::json!([
+            { "language": "sql", "scheme": "file" },
+            { "language": "sql", "scheme": "untitled" },
+        ]);
+        ["didOpen", "didChange", "didClose", "formatting"]
+            .into_iter()
+            .map(|method| {
+                let mut options = serde_json::json!({ "documentSelector": selector });
+                if method == "didChange" {
+                    options["syncKind"] = serde_json::json!(TextDocumentSyncKind::Full);
+                }
+                Registration {
+                    id: format!("oxfmt.sql.{method}"),
+                    method: format!("textDocument/{method}"),
+                    register_options: Some(options),
+                }
+            })
+            .collect()
     }
 }
 
@@ -535,6 +564,25 @@ mod tests_builder {
             capabilities.document_formatting_provider,
             Some(DocumentFormattingProvider::Bool(true))
         );
+    }
+
+    #[test]
+    fn sql_registration_requires_formatting_and_synchronization_support() {
+        let builder = ServerFormatterBuilder::dummy();
+        for (dynamic_formatting, dynamic_synchronization) in
+            [(false, false), (true, false), (false, true), (true, true)]
+        {
+            let capabilities = Capabilities {
+                dynamic_formatting,
+                dynamic_synchronization,
+                ..Capabilities::default()
+            };
+            let registrations = builder.dynamic_registrations(&capabilities);
+            assert_eq!(
+                registrations.len(),
+                if dynamic_formatting && dynamic_synchronization { 4 } else { 0 }
+            );
+        }
     }
 }
 

@@ -33,6 +33,8 @@ SQL embedded in JavaScript/TypeScript templates and Markdown fences. See
 [our Oxfmt additions](./npm/oxfmt/README.md#oxfmt) for installation, supported SQL
 syntax, and configuration.
 
+For standalone SQL in VS Code, install the [SQL companion extension](./editors/vscode-sql/README.md).
+
 ## ⚓ Oxc
 
 _/oʊ ɛks siː/_
