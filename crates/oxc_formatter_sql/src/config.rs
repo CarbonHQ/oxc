@@ -94,7 +94,7 @@ fn validate(settings: &SqlLayoutSettings) -> Result<(), OxcDiagnostic> {
     for rule in &settings.exclude_rules {
         let valid = (rule.len() == 4
             && rule.starts_with("LT")
-            && rule[2..].parse::<u8>().is_ok_and(|n| (1..=15).contains(&n)))
+            && rule[2..].parse::<u8>().is_ok_and(|n| (1..=16).contains(&n)))
             || matches!(rule.as_str(), "CP01" | "CP02" | "CP03" | "CP04" | "CP05");
         if !valid {
             return Err(error(format!("Unsupported SQL formatting rule: {rule}")));
@@ -257,6 +257,14 @@ pub fn build_linter(options: &SqlFormatOptions) -> Result<Linter, OxcDiagnostic>
     apply(&mut root, &["indentation"], &settings.indentation)?;
     apply(&mut root, &["rules", "layout.long_lines"], &settings.long_lines)?;
     apply(&mut root, &["rules", "layout.newlines"], &settings.newlines)?;
+    if let Some(source_line_breaks) = settings.source_line_breaks {
+        insert(
+            &mut root,
+            &["core"],
+            "source_line_breaks",
+            Value::String(source_line_breaks.name().into()),
+        );
+    }
     if let Some(policy) = settings.single_target_policy {
         insert(
             &mut root,

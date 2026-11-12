@@ -442,7 +442,12 @@ pub struct SqlConfig {
     pub print_width: Option<u16>,
     /// SQL dialect. Defaults to PostgreSQL.
     pub dialect: SqlDialect,
-    /// Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing
+    /// Whether source line breaks influence the layout. `preserve` (the default) keeps
+    /// them and adjusts the layout around them. `ignore` rebuilds the layout from
+    /// tokens, comments and blank lines, so the same SQL always formats the same way.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_line_breaks: Option<oxc_formatter_sql::SqlSourceLineBreaks>,
+    /// Sqruff formatting rules to exclude (LT01–LT16 and CP01–CP05). LT02 preserves existing
     /// indentation and LT05 preserves existing line wrapping. Parsing and token
     /// preservation checks remain enabled.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -590,6 +595,7 @@ pub enum SqlLayoutRule {
     Lt13,
     Lt14,
     Lt15,
+    Lt16,
     Cp01,
     Cp02,
     Cp03,
@@ -615,6 +621,7 @@ impl SqlLayoutRule {
             Self::Lt13 => "LT13",
             Self::Lt14 => "LT14",
             Self::Lt15 => "LT15",
+            Self::Lt16 => "LT16",
             Self::Cp01 => "CP01",
             Self::Cp02 => "CP02",
             Self::Cp03 => "CP03",
@@ -796,6 +803,7 @@ impl FormatConfig {
                     wildcard_policy: options.wildcard_policy,
                     newlines: options.newlines.clone(),
                     capitalization: options.capitalization.clone(),
+                    source_line_breaks: options.source_line_breaks,
                     single_target_policy: options
                         .single_target_policy
                         .map(SqlSingleTargetPolicy::name),

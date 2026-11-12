@@ -50,6 +50,29 @@ pub enum SqlImplicitIndents {
 pub enum SqlTrailingComments {
     Before,
     After,
+    /// Leave the comment at the end of its line and wrap only the code before it.
+    Keep,
+}
+
+/// Whether line breaks in the source influence the formatted layout.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SqlSourceLineBreaks {
+    /// Keep existing line breaks and adjust the layout around them.
+    #[default]
+    Preserve,
+    /// Rebuild the layout from tokens, comments and blank lines only, so the
+    /// same SQL always formats the same way however it was wrapped.
+    Ignore,
+}
+
+impl SqlSourceLineBreaks {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Preserve => "preserve",
+            Self::Ignore => "ignore",
+        }
+    }
 }
 
 /// Exceptions to LT05's line-width enforcement. Width inherits `printWidth`.

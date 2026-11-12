@@ -141,6 +141,15 @@ on its own line. The default, `"same_line"`, retains Sqruff's usual behavior.
 This maps to Sqruff's `single_target_policy` option for LT09 and applies to
 standalone SQL and embedded SQL.
 
+Set `sql.sourceLineBreaks` to `"ignore"` to build the layout from tokens, comments
+and blank lines only. The same SQL then formats the same way however it was
+wrapped, which keeps generated files such as schema dumps stable. The default,
+`"preserve"`, keeps existing line breaks and adjusts the layout around them.
+With `"ignore"`, set `sql.indentation.trailingComments` to `"keep"` so a trailing
+comment stays on its line while the code before it wraps, and use
+`sql.layout.<type>.keywordLinePosition` and `linePosition` to choose where
+clauses break. SQL that Sqruff cannot parse is left unchanged in both modes.
+
 Use `sql.excludeRules` and `sql.layout` to retain an existing SQL style with
 [Sqruff layout settings](https://playground.quary.dev/docs/usage/configuration/):
 

@@ -102,13 +102,14 @@ export type SqlLayoutRule =
   | "LT13"
   | "LT14"
   | "LT15"
+  | "LT16"
   | "CP01"
   | "CP02"
   | "CP03"
   | "CP04"
   | "CP05";
 export type SqlImplicitIndents = "forbid" | "allow" | "require";
-export type SqlTrailingComments = "before" | "after";
+export type SqlTrailingComments = ("before" | "after") | "keep";
 export type SqlAlignmentCoordinateSpace = "source" | "templated";
 /**
  * Leading, trailing, or alone, with optional strict/attached/align-following modifiers.
@@ -124,6 +125,10 @@ export type SqlSpacing = string;
  * Placement of a SELECT clause containing one target.
  */
 export type SqlSingleTargetPolicy = "same_line" | "new_line";
+/**
+ * Whether line breaks in the source influence the formatted layout.
+ */
+export type SqlSourceLineBreaks = "preserve" | "ignore";
 /**
  * Whether a wildcard counts as one SELECT target or multiple targets for LT09.
  */
@@ -1044,7 +1049,7 @@ export interface SqlConfig {
    */
   dialect?: SqlDialect & string;
   /**
-   * Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing
+   * Sqruff formatting rules to exclude (LT01–LT16 and CP01–CP05). LT02 preserves existing
    * indentation and LT05 preserves existing line wrapping. Parsing and token
    * preservation checks remain enabled.
    */
@@ -1079,6 +1084,12 @@ export interface SqlConfig {
    * Placement of a single SELECT target. Defaults to Sqruff's `same_line`.
    */
   singleTargetPolicy?: SqlSingleTargetPolicy;
+  /**
+   * Whether source line breaks influence the layout. `preserve` (the default) keeps
+   * them and adjusts the layout around them. `ignore` rebuilds the layout from
+   * tokens, comments and blank lines, so the same SQL always formats the same way.
+   */
+  sourceLineBreaks?: SqlSourceLineBreaks;
   /**
    * LT09 wildcard counting. Defaults to single.
    */

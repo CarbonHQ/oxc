@@ -81,7 +81,9 @@ pub struct SqlLayoutSettings {
     pub wildcard_policy: Option<SqlWildcardPolicy>,
     pub newlines: SqlNewlineSettings,
     pub capitalization: SqlCapitalizationSettings,
-    /// Formatting rule codes to exclude (LT01–LT15 and CP01–CP05).
+    /// Whether source line breaks influence the layout. Defaults to preserving them.
+    pub source_line_breaks: Option<SqlSourceLineBreaks>,
+    /// Formatting rule codes to exclude (LT01–LT16 and CP01–CP05).
     pub exclude_rules: Vec<String>,
     /// Placement of a SELECT clause containing one target.
     pub single_target_policy: Option<&'static str>,
@@ -468,7 +470,7 @@ mod tests {
 
     #[test]
     fn invalid_layout_configuration_returns_errors() {
-        for rule in ["CP06", "LT00", "LT16", "LT02\nignore = parsing"] {
+        for rule in ["CP06", "LT00", "LT17", "LT02\nignore = parsing"] {
             let mut configured = options("postgres");
             configured.settings.exclude_rules.push(rule.to_owned());
             assert!(SqlFormatter::new(configured).is_err(), "{rule}");
@@ -494,6 +496,33 @@ mod tests {
             configured.settings.types.insert(kind.to_owned(), setting);
             assert!(SqlFormatter::new(configured).is_err(), "{kind}");
         }
+    }
+
+    #[test]
+    fn ignored_source_line_breaks_give_one_layout() {
+        let mut configured = options("postgres");
+        configured.settings.source_line_breaks = Some(SqlSourceLineBreaks::Ignore);
+        configured.settings.single_target_policy = Some("new_line");
+        let expected =
+            "create table t (a integer, b text);\n\nselect\n  a\nfrom t\nwhere b = 'x';\n";
+
+        for source in [
+            "create table t (a integer, b text);\n\nselect a from t where b = 'x';",
+            "create table t\n(\n  a integer,\n  b text\n);\n\nselect\n  a\nfrom\n  t\nwhere\n  b = 'x';\n",
+            "create\ntable\nt\n(\na\ninteger\n,\nb\ntext\n)\n;\n\nselect\na\nfrom\nt\nwhere\nb\n=\n'x'\n;\n",
+        ] {
+            assert_eq!(format(source, configured.clone()).unwrap(), expected, "{source}");
+        }
+        assert_eq!(format(expected, configured.clone()).unwrap(), expected);
+
+        // Blank lines and comments keep their place.
+        let commented = "select\n  a, -- first\n  b\nfrom t;\n\n-- next\nselect\n  1;\n";
+        assert_eq!(format(commented, configured.clone()).unwrap(), commented);
+
+        // Parse errors still point into the source as written.
+        let invalid = "select 'é';\nselect *\nfrom";
+        let error = format(invalid, configured).unwrap_err();
+        assert_eq!(error.labels[0].offset() as usize, invalid.rfind("from").unwrap());
     }
 
     #[test]

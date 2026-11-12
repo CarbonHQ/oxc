@@ -1119,12 +1119,12 @@
           "markdownDescription": "SQL dialect. Defaults to PostgreSQL."
         },
         "excludeRules": {
-          "description": "Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled.",
+          "description": "Sqruff formatting rules to exclude (LT01–LT16 and CP01–CP05). LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/SqlLayoutRule"
           },
-          "markdownDescription": "Sqruff formatting rules to exclude (LT01–LT15 and CP01–CP05). LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled."
+          "markdownDescription": "Sqruff formatting rules to exclude (LT01–LT16 and CP01–CP05). LT02 preserves existing\nindentation and LT05 preserves existing line wrapping. Parsing and token\npreservation checks remain enabled."
         },
         "indentation": {
           "description": "Sqruff indentation structure; width and characters inherit tabWidth/useTabs.",
@@ -1179,6 +1179,15 @@
             }
           ],
           "markdownDescription": "Placement of a single SELECT target. Defaults to Sqruff's `same_line`."
+        },
+        "sourceLineBreaks": {
+          "description": "Whether source line breaks influence the layout. `preserve` (the default) keeps\nthem and adjusts the layout around them. `ignore` rebuilds the layout from\ntokens, comments and blank lines, so the same SQL always formats the same way.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SqlSourceLineBreaks"
+            }
+          ],
+          "markdownDescription": "Whether source line breaks influence the layout. `preserve` (the default) keeps\nthem and adjusts the layout around them. `ignore` rebuilds the layout from\ntokens, comments and blank lines, so the same SQL always formats the same way."
         },
         "wildcardPolicy": {
           "description": "LT09 wildcard counting. Defaults to single.",
@@ -1301,6 +1310,7 @@
         "LT13",
         "LT14",
         "LT15",
+        "LT16",
         "CP01",
         "CP02",
         "CP03",
@@ -1445,16 +1455,50 @@
       ],
       "markdownDescription": "Placement of a SELECT clause containing one target."
     },
+    "SqlSourceLineBreaks": {
+      "description": "Whether line breaks in the source influence the formatted layout.",
+      "oneOf": [
+        {
+          "description": "Keep existing line breaks and adjust the layout around them.",
+          "type": "string",
+          "enum": [
+            "preserve"
+          ],
+          "markdownDescription": "Keep existing line breaks and adjust the layout around them."
+        },
+        {
+          "description": "Rebuild the layout from tokens, comments and blank lines only, so the\nsame SQL always formats the same way however it was wrapped.",
+          "type": "string",
+          "enum": [
+            "ignore"
+          ],
+          "markdownDescription": "Rebuild the layout from tokens, comments and blank lines only, so the\nsame SQL always formats the same way however it was wrapped."
+        }
+      ],
+      "markdownDescription": "Whether line breaks in the source influence the formatted layout."
+    },
     "SqlSpacing": {
       "description": "Sqruff spacing: single, touch, any, single:inline, touch:inline, or align.\nCompact align:type:within:scope:coordinate syntax is supported too.",
       "type": "string",
       "markdownDescription": "Sqruff spacing: single, touch, any, single:inline, touch:inline, or align.\nCompact align:type:within:scope:coordinate syntax is supported too."
     },
     "SqlTrailingComments": {
-      "type": "string",
-      "enum": [
-        "before",
-        "after"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "before",
+            "after"
+          ]
+        },
+        {
+          "description": "Leave the comment at the end of its line and wrap only the code before it.",
+          "type": "string",
+          "enum": [
+            "keep"
+          ],
+          "markdownDescription": "Leave the comment at the end of its line and wrap only the code before it."
+        }
       ]
     },
     "SqlUserConfig": {

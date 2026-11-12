@@ -242,7 +242,7 @@ describe("Sqruff SQL plugin", () => {
       "schema.sql",
     );
     expect(output).toContain(
-      "foreign key (hub_id, primary_sector_id, primary_instrument_id)\n  references sky_atlasx.instrument(hub_id, sector_id, id)\n  on delete set null",
+      "  add constraint instrument_value_primary_sector_id_fkey\n    foreign key (hub_id, primary_sector_id, primary_instrument_id)\n    references sky_atlasx.instrument(hub_id, sector_id, id)\n    on delete set null",
     );
     expect(output.split("\n").every((line) => line.length <= 120)).toBe(true);
   });
