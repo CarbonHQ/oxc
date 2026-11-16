@@ -302,9 +302,9 @@ ignored = [
 oxc_allocator = { path = "crates/oxc_allocator" }
 # Sqruff compatibility/performance fixes:
 # https://github.com/CarbonHQ/sqruff/blob/oxfmt/README.md#about-this-fork
-sqruff-lib = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "5107bfee0bb11c9841e3c56aa2044d50c8ef15c9" }
-sqruff-lib-core = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "5107bfee0bb11c9841e3c56aa2044d50c8ef15c9" }
-sqruff-lib-dialects = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "5107bfee0bb11c9841e3c56aa2044d50c8ef15c9" }
+sqruff-lib = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "eea4990db294e53c1084d5ba27e2d96a342f1900" }
+sqruff-lib-core = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "eea4990db294e53c1084d5ba27e2d96a342f1900" }
+sqruff-lib-dialects = { git = "https://github.com/CarbonHQ/sqruff.git", rev = "eea4990db294e53c1084d5ba27e2d96a342f1900" }
 
 [profile.dev]
 # Disabling debug info speeds up local and CI builds,

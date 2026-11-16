@@ -148,7 +148,10 @@ wrapped, which keeps generated files such as schema dumps stable. The default,
 With `"ignore"`, set `sql.indentation.trailingComments` to `"keep"` so a trailing
 comment stays on its line while the code before it wraps, and use
 `sql.layout.<type>.keywordLinePosition` and `linePosition` to choose where
-clauses break. SQL that Sqruff cannot parse is left unchanged in both modes.
+clauses break. In this mode `and`/`or` terms, `case` branches and clause keywords
+such as `insert into`, `on conflict` and `returning` always start their own line,
+and a list, `case` or join condition that spans lines breaks at every boundary.
+SQL that Sqruff cannot parse is left unchanged in both modes.
 
 Use `sql.excludeRules` and `sql.layout` to retain an existing SQL style with
 [Sqruff layout settings](https://playground.quary.dev/docs/usage/configuration/):
